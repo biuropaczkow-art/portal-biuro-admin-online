@@ -18,3 +18,11 @@
 @media(max-width:430px){.hero-copy h1{font-size:49px}.login-card{padding:24px}.login-stage{min-height:480px}.orb-one{width:340px;height:340px}.hero-grid{padding-top:44px}.trust-line{align-items:flex-start}.modules-section{padding-top:70px}}
 
 
+
+.auth-divider{display:flex;align-items:center;text-align:center;margin:16px 0 12px;color:#94a3b8;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;border-bottom:1px solid var(--line)}
+.auth-divider::before{margin-right:10px}
+.auth-divider::after{margin-left:10px}
+.google-button{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:999px;background:#ffffff;color:#1f2937;font-size:12px;font-weight:600;cursor:pointer;transition:background-color .15s,border-color .15s;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.google-button:hover{background:#f8fafc;border-color:#cbd5e1}
+.google-button svg{flex-shrink:0}
