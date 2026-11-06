@@ -891,6 +891,15 @@ export default function Demo(){
                     Wyeliminowano z planu nierealne deklaracje o automatycznych kalkulatorach IP Box/B+R (brak implementacji i ryzyko z ustawy o doradztwie podatkowym). Oferta skoncentrowana wyłącznie na certyfikowanych modułach KSeF, Białej Liście VAT i portalu.
                   </p>
                 </article>
+                <article className="document-row" style={{cursor:"default",flexDirection:"column",alignItems:"flex-start",gap:"0.5rem"}}>
+                  <div style={{display:"flex",width:"100%",justifyContent:"space-between",alignItems:"center"}}>
+                    <span><strong>[RAPORT 012] Chief of Staff & Obsidian: Obieg Notatek i Zasady Ładu</strong><small>2026-11-06 · Zadanie A22 / Windows Vault / Governance / Brak Auto-Wysyłek</small></span>
+                    <span className="status approved">SUKCES</span>
+                  </div>
+                  <p style={{fontSize:"0.85rem",color:"var(--muted)",margin:"0.25rem 0"}}>
+                    Zmapowano dawne ścieżki linuksowe (/opt/data) do lokalnego systemu Windows. Zidentyfikowano 28 notatek w Obsidian Vault. Wdrożono rygorystyczny ład operacyjny: obieg intake → notatka → brief → draft oraz bezwzględny zakaz automatycznych wysyłek zewnętrznych bez akceptacji człowieka.
+                  </p>
+                </article>
               </div>
             </section>
           </TabsContent>
