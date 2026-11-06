@@ -873,6 +873,24 @@ export default function Demo(){
                     Usunięto zbędne pliki i szablony testowe z BiuroAdmin, wdrożono master README.md z pełną mapą architektury, matrycą audytową A01–A15 i podręcznikiem operacyjnym (Runbook). Zabezpieczono higienę przez .gitignore.
                   </p>
                 </article>
+                <article className="document-row" style={{cursor:"default",flexDirection:"column",alignItems:"flex-start",gap:"0.5rem"}}>
+                  <div style={{display:"flex",width:"100%",justifyContent:"space-between",alignItems:"center"}}>
+                    <span><strong>[RAPORT 010] Diagnostyka Hermes, integralność baz SQLite i analiza zasobów</strong><small>2026-11-06 · Zadania A19, A20, A21, A23 / WAL / Gateway PID 19868</small></span>
+                    <span className="status approved">SUKCES</span>
+                  </div>
+                  <p style={{fontSize:"0.85rem",color:"var(--muted)",margin:"0.25rem 0"}}>
+                    Wykonano pełny PRAGMA integrity_check na 6 bazach SQLite (wszystkie sprawne 100% ok). Gateway aktywny na PID 19868 (Discord, Telegram, webhook). Wyjaśniono historyczny błąd OMH (eksperyment). Dysk i cache stabilne.
+                  </p>
+                </article>
+                <article className="document-row" style={{cursor:"default",flexDirection:"column",alignItems:"flex-start",gap:"0.5rem"}}>
+                  <div style={{display:"flex",width:"100%",justifyContent:"space-between",alignItems:"center"}}>
+                    <span><strong>[RAPORT 011] Weryfikacja założeń narzędziowych: kalkulatory i granice prawne</strong><small>2026-11-06 · Zadanie A17 / IP Box / B+R / Ochrona prawna</small></span>
+                    <span className="status pending">ODRZUCONO</span>
+                  </div>
+                  <p style={{fontSize:"0.85rem",color:"var(--muted)",margin:"0.25rem 0"}}>
+                    Wyeliminowano z planu nierealne deklaracje o automatycznych kalkulatorach IP Box/B+R (brak implementacji i ryzyko z ustawy o doradztwie podatkowym). Oferta skoncentrowana wyłącznie na certyfikowanych modułach KSeF, Białej Liście VAT i portalu.
+                  </p>
+                </article>
               </div>
             </section>
           </TabsContent>
