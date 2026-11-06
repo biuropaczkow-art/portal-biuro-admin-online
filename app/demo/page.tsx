@@ -864,6 +864,15 @@ export default function Demo(){
                     Rozstrzygnięto mity o „KMS na produkcji” (były to przykłady szkoleniowe). Potwierdzono 100% czystość repozytoriów w audycie historii commitów (brak wycieków). Wdrożenia Pages oparte na GitHub OIDC bez stałych tokenów.
                   </p>
                 </article>
+                <article className="document-row" style={{cursor:"default",flexDirection:"column",alignItems:"flex-start",gap:"0.5rem"}}>
+                  <div style={{display:"flex",width:"100%",justifyContent:"space-between",alignItems:"center"}}>
+                    <span><strong>[RAPORT 009] Uporządkowanie repozytorium BiuroAdmin i Runbook</strong><small>2026-11-06 · Zadanie A13 / Higiena repo / Master README</small></span>
+                    <span className="status approved">SUKCES</span>
+                  </div>
+                  <p style={{fontSize:"0.85rem",color:"var(--muted)",margin:"0.25rem 0"}}>
+                    Usunięto zbędne pliki i szablony testowe z BiuroAdmin, wdrożono master README.md z pełną mapą architektury, matrycą audytową A01–A15 i podręcznikiem operacyjnym (Runbook). Zabezpieczono higienę przez .gitignore.
+                  </p>
+                </article>
               </div>
             </section>
           </TabsContent>
