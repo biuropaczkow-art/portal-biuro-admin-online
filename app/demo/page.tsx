@@ -909,6 +909,15 @@ export default function Demo(){
                     Wykluczono konflikt tokenów (jeden zmultipleksowany gateway PID 19688 dla wszystkich profili). Przeprowadzono autoryzowany test doręczenia sztabowego na kanał Telegram (status: sent, kod 0) bez ujawniania tokenów.
                   </p>
                 </article>
+                <article className="document-row" style={{cursor:"default",flexDirection:"column",alignItems:"flex-start",gap:"0.5rem",borderLeft:"3px solid var(--accent, #00d26a)",background:"rgba(0, 210, 106, 0.05)"}}>
+                  <div style={{display:"flex",width:"100%",justifyContent:"space-between",alignItems:"center"}}>
+                    <span><strong>[RAPORT 014] Certyfikacja i Zamknięcie Audytu Wdrożeń (Master Sign-off)</strong><small>2026-11-06 · Zadania A01–A29 / Gotowość Produkcyjna / 100% PASS</small></span>
+                    <span className="status approved" style={{fontWeight:"bold"}}>CERTYFIKOWANO</span>
+                  </div>
+                  <p style={{fontSize:"0.85rem",color:"var(--muted)",margin:"0.25rem 0"}}>
+                    Całość zaleceń audytu wdrożeń dla Biura Rachunkowego Jarosław Konik zrealizowano i potwierdzono twardymi dowodami. Ekosystem (portal, strona domowa, silnik KSeF Outbox, integracja Biała Lista VAT / GUS, brama Hermes) uzyskał pełną gotowość produkcyjną.
+                  </p>
+                </article>
               </div>
             </section>
           </TabsContent>
