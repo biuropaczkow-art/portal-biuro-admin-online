@@ -846,6 +846,24 @@ export default function Demo(){
                     Zaimplementowano bezpieczne pobieranie danych kontrahentów z oficjalnego państwowego rejestru MF/KAS. Automatyczna weryfikacja sumy kontrolnej NIP, statusu podatnika VAT (czynny/zwolniony), numeru REGON, KRS, adresu oraz numerów rachunków bankowych na Białej Liście (art. 96b ustawy o VAT).
                   </p>
                 </article>
+                <article className="document-row" style={{cursor:"default",flexDirection:"column",alignItems:"flex-start",gap:"0.5rem"}}>
+                  <div style={{display:"flex",width:"100%",justifyContent:"space-between",alignItems:"center"}}>
+                    <span><strong>[RAPORT 007] Zabezpieczenie certyfikatów SSL/TLS i odnowień domenowych</strong><small>2026-11-06 · Zadanie A12 / Hostinger DNS / Let's Encrypt</small></span>
+                    <span className="status approved">SUKCES</span>
+                  </div>
+                  <p style={{fontSize:"0.85rem",color:"var(--muted)",margin:"0.25rem 0"}}>
+                    Dodano rekordy CAA dla Let's Encrypt w Hostinger DNS, zlikwidowano błąd SEC_E_WRONG_PRINCIPAL, zatwierdzono certyfikaty TLS na GitHub Pages i wymuszono HTTPS (HTTP 200 OK). Domena biuroadmin.online ma aktywną autorezerwację do 2027 r.
+                  </p>
+                </article>
+                <article className="document-row" style={{cursor:"default",flexDirection:"column",alignItems:"flex-start",gap:"0.5rem"}}>
+                  <div style={{display:"flex",width:"100%",justifyContent:"space-between",alignItems:"center"}}>
+                    <span><strong>[RAPORT 008] Weryfikacja zarządzania sekretami, tokenów i procedur bezpieczeństwa</strong><small>2026-11-06 · Zadanie A09 / Zero-Secrets / OIDC</small></span>
+                    <span className="status approved">SUKCES</span>
+                  </div>
+                  <p style={{fontSize:"0.85rem",color:"var(--muted)",margin:"0.25rem 0"}}>
+                    Rozstrzygnięto mity o „KMS na produkcji” (były to przykłady szkoleniowe). Potwierdzono 100% czystość repozytoriów w audycie historii commitów (brak wycieków). Wdrożenia Pages oparte na GitHub OIDC bez stałych tokenów.
+                  </p>
+                </article>
               </div>
             </section>
           </TabsContent>
