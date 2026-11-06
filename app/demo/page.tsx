@@ -900,6 +900,15 @@ export default function Demo(){
                     Zmapowano dawne ścieżki linuksowe (/opt/data) do lokalnego systemu Windows. Zidentyfikowano 28 notatek w Obsidian Vault. Wdrożono rygorystyczny ład operacyjny: obieg intake → notatka → brief → draft oraz bezwzględny zakaz automatycznych wysyłek zewnętrznych bez akceptacji człowieka.
                   </p>
                 </article>
+                <article className="document-row" style={{cursor:"default",flexDirection:"column",alignItems:"flex-start",gap:"0.5rem"}}>
+                  <div style={{display:"flex",width:"100%",justifyContent:"space-between",alignItems:"center"}}>
+                    <span><strong>[RAPORT 013] Weryfikacja Kanału Telegram i Test Dostarczenia E2E</strong><small>2026-11-06 · Zadanie A24 / Telegram Target [8228125885] / Brak Token Lock</small></span>
+                    <span className="status approved">SUKCES</span>
+                  </div>
+                  <p style={{fontSize:"0.85rem",color:"var(--muted)",margin:"0.25rem 0"}}>
+                    Wykluczono konflikt tokenów (jeden zmultipleksowany gateway PID 19688 dla wszystkich profili). Przeprowadzono autoryzowany test doręczenia sztabowego na kanał Telegram (status: sent, kod 0) bez ujawniania tokenów.
+                  </p>
+                </article>
               </div>
             </section>
           </TabsContent>
