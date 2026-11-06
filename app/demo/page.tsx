@@ -13,8 +13,9 @@ export default function Demo(){
  const [messages,setMessages]=useState([{by:"Biuro",text:"Witamy w demonstracji. W zakładce Dokumenty czeka przykładowa faktura do sprawdzenia."}]);
  useEffect(()=>{
    const params = new URLSearchParams(window.location.search);
+   const hashParams = typeof window !== "undefined" ? new URLSearchParams(window.location.hash.replace(/^#/, '')) : new URLSearchParams();
    if(params.get("role")==="admin") setRole("admin");
-   if(params.get("auth")==="google" || (typeof window !== "undefined" && window.location.pathname.includes("callback"))) {
+   if(params.get("auth")==="google" || hashParams.get("access_token") || (typeof window !== "undefined" && window.location.pathname.includes("callback"))) {
      setNotice("Zalogowano pomyślnie przez Google OAuth. Dostęp do przestrzeni klienta aktywny.");
    }
  },[]);
