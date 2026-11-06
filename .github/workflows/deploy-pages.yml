@@ -36,6 +36,13 @@ jobs:
       - name: Build static site with Vite
         run: npx vite build --config deploy/vps/vite.config.ts
 
+      - name: Setup SPA routing fallback for GitHub Pages
+        run: |
+          cp deploy/vps/site/index.html deploy/vps/site/404.html
+          mkdir -p deploy/vps/site/demo deploy/vps/site/auth/callback
+          cp deploy/vps/site/index.html deploy/vps/site/demo/index.html
+          cp deploy/vps/site/index.html deploy/vps/site/auth/callback/index.html
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
