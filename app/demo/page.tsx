@@ -457,6 +457,15 @@ export default function Demo(){
                     Zintegrowano obliczanie hasha SHA-256 z plików użytkownika, blokadę DUPLICATE_FILE_HASH oraz DUPLICATE_BUSINESS_KEY bezpośrednio w interfejsie wgrywania dokumentów.
                   </p>
                 </article>
+                <article className="document-row" style={{cursor:"default",flexDirection:"column",alignItems:"flex-start",gap:"0.5rem"}}>
+                  <div style={{display:"flex",width:"100%",justifyContent:"space-between",alignItems:"center"}}>
+                    <span><strong>[RAPORT 004] Audyt integracji e-Doręczeń: uprawnienia i skutki prawne</strong><small>2026-11-06 · Zadanie A10 / BAE / PUE ZUS</small></span>
+                    <span className="status rejected">BLOKADA ODBIORU</span>
+                  </div>
+                  <p style={{fontSize:"0.85rem",color:"var(--muted)",margin:"0.25rem 0"}}>
+                    Wykazano brak adaptera produkcyjnego. Ustanowiono bezwzględny zakaz automatycznego kwitowania odbioru pism przez boty (UPD wywołuje skutki procesowe). Obalono mit o UPL-1 dla e-Doręczeń.
+                  </p>
+                </article>
               </div>
             </section>
           </TabsContent>
