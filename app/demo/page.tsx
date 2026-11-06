@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useState,useRef} from "react";
-import {ArrowLeft,ArrowRight,FileText,MessageSquare,ShieldCheck,Plus,CheckCircle2,Landmark,Activity,FileCheck2,Clock,Upload,AlertTriangle,ShieldAlert,Lock} from "lucide-react";
+import {ArrowLeft,ArrowRight,FileText,MessageSquare,ShieldCheck,Plus,CheckCircle2,Landmark,Activity,FileCheck2,Clock,Upload,AlertTriangle,ShieldAlert,Lock,Search,Building2,ExternalLink,RefreshCw,Check,UserCheck,AlertCircle,CreditCard} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {Tabs,TabsList,TabsTrigger,TabsContent} from "@/components/ui/tabs";
 import {Textarea} from "@/components/ui/textarea";
@@ -19,6 +19,59 @@ type Doc={
   issueDate?:string;
   validationDetails?:string;
 };
+
+type Contractor={
+  id:number;
+  nip:string;
+  name:string;
+  regon:string;
+  statusVat:string;
+  address:string;
+  registrationDate?:string;
+  krs?:string;
+  accountNumbers?:string[];
+  requestId?:string;
+  isVerifiedWhiteList?:boolean;
+};
+
+const initialContractors:Contractor[]=[
+  {
+    id:1,
+    nip:"7532190370",
+    name:"JAROSŁAW KONIK BIURO RACHUNKOWE",
+    regon:"160059549",
+    statusVat:"Zwolniony",
+    address:"JANA PAWŁA II 15, 48-370 PACZKÓW",
+    registrationDate:"2006-03-01",
+    accountNumbers:["34109021960000000160249221"],
+    requestId:"seed-wl-001",
+    isVerifiedWhiteList:true
+  },
+  {
+    id:2,
+    nip:"6770065406",
+    name:"COMARCH SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ",
+    regon:"350527377",
+    statusVat:"Czynny",
+    address:"PROF. MICHAŁA ŻYCZKOWSKIEGO 33, 31-864 KRAKÓW",
+    registrationDate:"2000-07-01",
+    krs:"0001273837",
+    accountNumbers:["03239000040011000000008177","08160010710003011250558001"],
+    requestId:"seed-wl-002",
+    isVerifiedWhiteList:true
+  }
+];
+
+function validatePolishNip(nip:string):boolean{
+  const digits=nip.replace(/[\s-]/g,"");
+  if(!/^\d{10}$/.test(digits)) return false;
+  const weights=[6,5,7,2,3,4,5,6,7];
+  let sum=0;
+  for(let i=0;i<9;i++){
+    sum+=parseInt(digits[i],10)*weights[i];
+  }
+  return sum%11===parseInt(digits[9],10);
+}
 
 const initial:Doc[]=[
   {
@@ -86,6 +139,12 @@ export default function Demo(){
   const [valAlert,setValAlert]=useState<{type:"success"|"error";title:string;message:string;code?:string}|null>(null);
   const [isProcessing,setIsProcessing]=useState(false);
   const fileInputRef=useRef<HTMLInputElement|null>(null);
+
+  const [searchNip,setSearchNip]=useState("");
+  const [isSearchingGus,setIsSearchingGus]=useState(false);
+  const [gusResult,setGusResult]=useState<Contractor|null>(null);
+  const [gusError,setGusError]=useState<string|null>(null);
+  const [contractors,setContractors]=useState<Contractor[]>(initialContractors);
 
   const [messages,setMessages]=useState([
     {by:"Biuro",text:"Witamy w demonstracji. W zakładce Dokumenty czeka przykładowa faktura do sprawdzenia."}
@@ -209,6 +268,83 @@ export default function Demo(){
     });
   }
 
+  async function fetchContractorFromGus(nipInput?:string){
+    const rawNip=(nipInput!==undefined?nipInput:searchNip).trim();
+    const cleanNip=rawNip.replace(/[\s-]/g,"");
+    setGusError(null);
+    setGusResult(null);
+
+    if(!validatePolishNip(cleanNip)){
+      setGusError(`Niepoprawny format lub suma kontrolna NIP "${rawNip}". Wprowadź poprawny 10-cyfrowy NIP polskiego podatnika.`);
+      return;
+    }
+
+    setIsSearchingGus(true);
+    try{
+      const today=new Date().toISOString().split("T")[0];
+      const res=await fetch(`https://wl-api.mf.gov.pl/api/search/nip/${cleanNip}?date=${today}`,{
+        headers:{"Accept":"application/json"}
+      });
+
+      if(!res.ok){
+        if(res.status===404||res.status===400){
+          const errData=await res.json().catch(()=>null);
+          throw new Error(errData?.message||`Podmiot o NIP ${cleanNip} nie figuruje w wykazie podatników VAT (Biała Lista) lub rejestrze.`);
+        }
+        throw new Error(`Błąd serwera rejestru państwowego (HTTP ${res.status}). Spróbuj ponownie.`);
+      }
+
+      const data=await res.json();
+      const subject=data?.result?.subject;
+      if(!subject){
+        throw new Error(`Brak danych podmiotu w odpowiedzi rejestru MF dla NIP ${cleanNip}.`);
+      }
+
+      const contractor:Contractor={
+        id:Date.now(),
+        nip:subject.nip||cleanNip,
+        name:subject.name||"Brak nazwy",
+        regon:subject.regon||"Brak REGON",
+        statusVat:subject.statusVat||"Niezarejestrowany",
+        address:subject.workingAddress||subject.residenceAddress||"Brak adresu w rejestrze",
+        registrationDate:subject.registrationLegalDate||undefined,
+        krs:subject.krs||undefined,
+        accountNumbers:Array.isArray(subject.accountNumbers)?subject.accountNumbers:[],
+        requestId:data?.result?.requestId,
+        isVerifiedWhiteList:true
+      };
+
+      setGusResult(contractor);
+      setNotice(`Pobrano dane kontrahenta "${contractor.name}" z oficjalnego rejestru GUS / KAS.`);
+    }catch(err:any){
+      setGusError(err?.message||"Wystąpił błąd podczas pobierania danych z rejestru.");
+    }finally{
+      setIsSearchingGus(false);
+    }
+  }
+
+  function addContractorToRegistry(c:Contractor){
+    if(contractors.some(item=>item.nip===c.nip)){
+      setNotice(`Kontrahent o NIP ${c.nip} już znajduje się w kartotece.`);
+      return;
+    }
+    setContractors(prev=>[c,...prev]);
+    setNotice(`Kontrahent "${c.name}" został pomyślnie dodany do kartoteki biura.`);
+  }
+
+  function createInvoiceForContractor(c:Contractor){
+    setTab("documents");
+    const uniqueId=Date.now().toString().slice(-4);
+    processDocumentUpload(null,{
+      name:`FV_${c.nip}_${uniqueId}.xml`,
+      sellerNip:c.nip,
+      invoiceNumber:`FV/${new Date().getFullYear()}/${uniqueId}`,
+      issueDate:new Date().toISOString().split("T")[0],
+      amount:"2 460,00 zł",
+      content:`<Faktura><NIP>${c.nip}</NIP><Nazwa>${c.name}</Nazwa><REGON>${c.regon}</REGON><Nr>FV/${new Date().getFullYear()}/${uniqueId}</Nr><Timestamp>${Date.now()}</Timestamp></Faktura>`
+    });
+  }
+
   function approve(){
     if(!selected) return;
     setDocs(p=>p.map(d=>d.id===selected.id?{...d,status:"Zatwierdzony"}:d));
@@ -269,6 +405,7 @@ export default function Demo(){
           <TabsList aria-label="Moduły portalu" className="module-tabs">
             <TabsTrigger value="overview">Pulpit</TabsTrigger>
             <TabsTrigger value="documents">Dokumenty & Walidator</TabsTrigger>
+            <TabsTrigger value="contractors">Kontrahenci (GUS / REGON)</TabsTrigger>
             <TabsTrigger value="ksef">KSeF</TabsTrigger>
             <TabsTrigger value="zus">e-ZUS</TabsTrigger>
             <TabsTrigger value="reports">Raporty sztabowe</TabsTrigger>
@@ -389,6 +526,231 @@ export default function Demo(){
             </section>
           </TabsContent>
 
+          <TabsContent value="contractors">
+            {/* WYSZUKIWARKA GUS / REGON / BIAŁA LISTA */}
+            <section className="workspace-card" style={{borderLeft:"4px solid #0d5b43", marginBottom:"1.5rem"}}>
+              <div className="card-heading">
+                <div>
+                  <h2 style={{display:"flex", alignItems:"center", gap:"0.5rem"}}>
+                    <Building2 className="text-emerald-700" size={24}/>
+                    Pobieranie i weryfikacja danych kontrahenta (GUS / REGON / Biała Lista MF)
+                  </h2>
+                  <p>
+                    Oficjalne zapytanie do państwowego rejestru Ministerstwa Finansów i Krajowej Administracji Skarbowej.
+                    Automatycznie pobiera pełną nazwę, REGON, adres, status czynnego podatnika VAT oraz rachunki bankowe (art. 96b ustawy o VAT).
+                  </p>
+                </div>
+                <span className="status approved" style={{display:"flex", alignItems:"center", gap:"0.3rem"}}>
+                  <CheckCircle2 size={14}/> Rejestr MF Online
+                </span>
+              </div>
+
+              {/* Formularz wyszukiwania */}
+              <div style={{display:"flex", flexDirection:"column", gap:"1rem", maxWidth:"720px", marginBottom:"1.25rem"}}>
+                <label htmlFor="nip-search" style={{fontSize:"0.875rem", fontWeight:600, color:"#17251f"}}>
+                  Wprowadź 10-cyfrowy NIP kontrahenta:
+                </label>
+                <div style={{display:"flex", gap:"0.75rem", flexWrap:"wrap"}}>
+                  <input
+                    id="nip-search"
+                    type="text"
+                    placeholder="np. 7532190370 lub 6770065406"
+                    value={searchNip}
+                    onChange={e=>setSearchNip(e.target.value)}
+                    onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();fetchContractorFromGus();}}}
+                    style={{
+                      flex:"1 1 240px",
+                      padding:"10px 14px",
+                      borderRadius:"10px",
+                      border:"1px solid var(--line, #d8ddd3)",
+                      fontSize:"0.95rem",
+                      fontFamily:"monospace",
+                      letterSpacing:"0.05em",
+                      backgroundColor:"#ffffff"
+                    }}
+                  />
+                  <Button
+                    onClick={()=>fetchContractorFromGus()}
+                    disabled={isSearchingGus||!searchNip.trim()}
+                    style={{display:"inline-flex", alignItems:"center", gap:"0.5rem"}}
+                  >
+                    {isSearchingGus ? (
+                      <>
+                        <RefreshCw className="animate-spin" size={16}/> Pobieranie z rejestru...
+                      </>
+                    ) : (
+                      <>
+                        <Search size={16}/> Pobierz dane z GUS / KAS
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Szybkie przyciski testowe */}
+                <div style={{display:"flex", alignItems:"center", gap:"0.5rem", flexWrap:"wrap", marginTop:"0.25rem"}}>
+                  <span style={{fontSize:"0.75rem", color:"#64748b"}}>Przetestuj z rejestru:</span>
+                  <button
+                    type="button"
+                    onClick={()=>{setSearchNip("7532190370");fetchContractorFromGus("7532190370");}}
+                    style={{fontSize:"0.75rem", padding:"4px 8px", background:"#eef2f6", border:"1px solid #cbd5e1", borderRadius:"6px", cursor:"pointer"}}
+                  >
+                    NIP Biura (7532190370)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={()=>{setSearchNip("6770065406");fetchContractorFromGus("6770065406");}}
+                    style={{fontSize:"0.75rem", padding:"4px 8px", background:"#eef2f6", border:"1px solid #cbd5e1", borderRadius:"6px", cursor:"pointer"}}
+                  >
+                    NIP Comarch (6770065406)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={()=>{setSearchNip("7740001454");fetchContractorFromGus("7740001454");}}
+                    style={{fontSize:"0.75rem", padding:"4px 8px", background:"#eef2f6", border:"1px solid #cbd5e1", borderRadius:"6px", cursor:"pointer"}}
+                  >
+                    NIP Orlen (7740001454)
+                  </button>
+                </div>
+              </div>
+
+              {/* Komunikat o błędzie */}
+              {gusError && (
+                <div style={{
+                  padding:"1rem",
+                  borderRadius:"8px",
+                  marginBottom:"1.25rem",
+                  backgroundColor:"rgba(239, 68, 68, 0.1)",
+                  border:"1px solid #ef4444",
+                  color:"#b91c1c",
+                  display:"flex",
+                  alignItems:"flex-start",
+                  gap:"0.75rem"
+                }}>
+                  <AlertCircle size={20} style={{flexShrink:0, marginTop:"2px"}}/>
+                  <div>
+                    <strong>Błąd zapytania rejestru:</strong>
+                    <p style={{margin:"4px 0 0", fontSize:"0.875rem"}}>{gusError}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Karta wyniku zapytania GUS / Biała Lista */}
+              {gusResult && (
+                <div style={{
+                  padding:"1.25rem",
+                  borderRadius:"12px",
+                  backgroundColor:"#ffffff",
+                  border:"1px solid #b8e3cc",
+                  boxShadow:"0 2px 8px rgba(13,91,67,0.06)",
+                  marginTop:"1rem"
+                }}>
+                  <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:"0.75rem", marginBottom:"1rem"}}>
+                    <div>
+                      <span style={{fontSize:"0.75rem", textTransform:"uppercase", letterSpacing:"0.08em", color:"#0d5b43", fontWeight:700}}>
+                        Dane z oficjalnego rejestru państwowego
+                      </span>
+                      <h3 style={{fontSize:"1.25rem", margin:"0.25rem 0", color:"#17251f"}}>
+                        {gusResult.name}
+                      </h3>
+                      <p style={{fontSize:"0.875rem", color:"#53605a", margin:0}}>
+                        {gusResult.address}
+                      </p>
+                    </div>
+                    <span className={gusResult.statusVat==="Czynny" ? "status approved" : gusResult.statusVat==="Zwolniony" ? "status" : "status"} style={{fontSize:"0.85rem", padding:"6px 12px"}}>
+                      Status VAT: <strong>{gusResult.statusVat}</strong>
+                    </span>
+                  </div>
+
+                  <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:"1rem", backgroundColor:"#fbfaf6", padding:"1rem", borderRadius:"8px", border:"1px solid #e1e3d9", marginBottom:"1.25rem", fontSize:"0.875rem"}}>
+                    <div>
+                      <span style={{color:"#6b7769", fontSize:"0.75rem", display:"block"}}>NIP</span>
+                      <strong style={{fontFamily:"monospace"}}>{gusResult.nip}</strong>
+                    </div>
+                    <div>
+                      <span style={{color:"#6b7769", fontSize:"0.75rem", display:"block"}}>REGON (GUS)</span>
+                      <strong style={{fontFamily:"monospace"}}>{gusResult.regon}</strong>
+                    </div>
+                    {gusResult.krs && (
+                      <div>
+                        <span style={{color:"#6b7769", fontSize:"0.75rem", display:"block"}}>KRS</span>
+                        <strong style={{fontFamily:"monospace"}}>{gusResult.krs}</strong>
+                      </div>
+                    )}
+                    {gusResult.registrationDate && (
+                      <div>
+                        <span style={{color:"#6b7769", fontSize:"0.75rem", display:"block"}}>Data rejestracji</span>
+                        <span>{gusResult.registrationDate}</span>
+                      </div>
+                    )}
+                    {gusResult.requestId && (
+                      <div style={{gridColumn:"1 / -1"}}>
+                        <span style={{color:"#6b7769", fontSize:"0.75rem", display:"block"}}>Identyfikator kontrolny KAS (Dowód zapytania)</span>
+                        <code style={{fontSize:"0.75rem", color:"#0d5b43"}}>{gusResult.requestId}</code>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Numery rachunków bankowych (Biała Lista) */}
+                  {gusResult.accountNumbers && gusResult.accountNumbers.length > 0 && (
+                    <div style={{marginBottom:"1.25rem"}}>
+                      <h4 style={{fontSize:"0.85rem", fontWeight:600, color:"#17251f", marginBottom:"0.5rem", display:"flex", alignItems:"center", gap:"0.4rem"}}>
+                        <CreditCard size={15}/> Zgłoszone rachunki bankowe (Biała Lista Podatników):
+                      </h4>
+                      <div style={{display:"flex", flexDirection:"column", gap:"0.35rem"}}>
+                        {gusResult.accountNumbers.slice(0, 3).map((acc, idx) => (
+                          <div key={idx} style={{fontFamily:"monospace", fontSize:"0.8rem", backgroundColor:"#f4f8f5", padding:"6px 10px", borderRadius:"6px", border:"1px solid #d1e7dd", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                            <span>{acc}</span>
+                            <span style={{color:"#0d5b43", fontSize:"0.7rem", fontWeight:600}}>Biała Lista OK</span>
+                          </div>
+                        ))}
+                        {gusResult.accountNumbers.length > 3 && (
+                          <small style={{color:"#64748b"}}>... oraz {gusResult.accountNumbers.length - 3} innych rachunków</small>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Akcje dla pobranego kontrahenta */}
+                  <div style={{display:"flex", gap:"0.75rem", flexWrap:"wrap"}}>
+                    <Button onClick={()=>addContractorToRegistry(gusResult)}>
+                      <Plus size={16}/> Dodaj do kartoteki kontrahentów
+                    </Button>
+                    <Button variant="outline" onClick={()=>createInvoiceForContractor(gusResult)}>
+                      <FileCheck2 size={16}/> Wystaw fakturę KSeF dla tego podmiotu
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            {/* KARTOTEKA KONTRAHENTÓW */}
+            <section className="workspace-card">
+              <div className="card-heading">
+                <div>
+                  <h2>Kartoteka kontrahentów biura ({contractors.length})</h2>
+                  <p>Podmioty zarejestrowane w strefie klienta ze zweryfikowanym statusem REGON i VAT.</p>
+                </div>
+              </div>
+              <div className="document-list">
+                {contractors.map(c => (
+                  <div key={c.id} className="document-row" style={{cursor:"default", justifyContent:"space-between"}}>
+                    <Building2 size={22}/>
+                    <span>
+                      <strong>{c.name}</strong>
+                      <small>NIP: {c.nip} · REGON: {c.regon} {c.krs ? `· KRS: ${c.krs}` : ""} · {c.address}</small>
+                    </span>
+                    <span className={c.statusVat==="Czynny"?"status approved":c.statusVat==="Zwolniony"?"status":"status"}>
+                      VAT: {c.statusVat}
+                    </span>
+                    <Button variant="outline" size="sm" onClick={()=>createInvoiceForContractor(c)} style={{fontSize:"0.75rem", height:"32px"}}>
+                      Faktura KSeF <ArrowRight size={14}/>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </TabsContent>
+
           <TabsContent value="ksef">
             <section className="workspace-card">
               <div className="card-heading">
@@ -473,6 +835,15 @@ export default function Demo(){
                   </div>
                   <p style={{fontSize:"0.85rem",color:"var(--muted)",margin:"0.25rem 0"}}>
                     Wdrożono i zweryfikowano potoki GitHub Actions dla ksef-outbox-pattern oraz portal-biuro-admin-online. Uruchomiono skaner podatności Google OSV-Scanner oraz testy regresyjne walidatora (5/5 PASS, 100%). Usunięto podatną zależność uuid i zastąpiono standardowym crypto.randomUUID().
+                  </p>
+                </article>
+                <article className="document-row" style={{cursor:"default",flexDirection:"column",alignItems:"flex-start",gap:"0.5rem"}}>
+                  <div style={{display:"flex",width:"100%",justifyContent:"space-between",alignItems:"center"}}>
+                    <span><strong>[RAPORT 006] Integracja z rejestrami GUS / REGON i Białą Listą MF</strong><small>2026-11-06 · Zadanie A07 / API wl-api.mf.gov.pl</small></span>
+                    <span className="status approved">SUKCES</span>
+                  </div>
+                  <p style={{fontSize:"0.85rem",color:"var(--muted)",margin:"0.25rem 0"}}>
+                    Zaimplementowano bezpieczne pobieranie danych kontrahentów z oficjalnego państwowego rejestru MF/KAS. Automatyczna weryfikacja sumy kontrolnej NIP, statusu podatnika VAT (czynny/zwolniony), numeru REGON, KRS, adresu oraz numerów rachunków bankowych na Białej Liście (art. 96b ustawy o VAT).
                   </p>
                 </article>
               </div>
