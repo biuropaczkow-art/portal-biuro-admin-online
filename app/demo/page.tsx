@@ -466,6 +466,15 @@ export default function Demo(){
                     Wykazano brak adaptera produkcyjnego. Ustanowiono bezwzględny zakaz automatycznego kwitowania odbioru pism przez boty (UPD wywołuje skutki procesowe). Obalono mit o UPL-1 dla e-Doręczeń.
                   </p>
                 </article>
+                <article className="document-row" style={{cursor:"default",flexDirection:"column",alignItems:"flex-start",gap:"0.5rem"}}>
+                  <div style={{display:"flex",width:"100%",justifyContent:"space-between",alignItems:"center"}}>
+                    <span><strong>[RAPORT 005] Weryfikacja pipeline'ów CI/OSV i testów regresyjnych</strong><small>2026-11-06 · Zadanie A11 / Actions Run 42188483388</small></span>
+                    <span className="status approved">SUKCES</span>
+                  </div>
+                  <p style={{fontSize:"0.85rem",color:"var(--muted)",margin:"0.25rem 0"}}>
+                    Wdrożono i zweryfikowano potoki GitHub Actions dla ksef-outbox-pattern oraz portal-biuro-admin-online. Uruchomiono skaner podatności Google OSV-Scanner oraz testy regresyjne walidatora (5/5 PASS, 100%). Usunięto podatną zależność uuid i zastąpiono standardowym crypto.randomUUID().
+                  </p>
+                </article>
               </div>
             </section>
           </TabsContent>
