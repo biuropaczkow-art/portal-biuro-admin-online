@@ -10,11 +10,13 @@ export default function Home() {
 
   const handleGoogleLogin = () => {
     // Official Google OAuth redirect with fallback to demo workspace
+    const config = (typeof window !== "undefined" && (window as any).PORTAL_CONFIG) || {};
     const googleClientId =
+      config.GOOGLE_CLIENT_ID ||
       (typeof window !== "undefined" && (window as any).GOOGLE_CLIENT_ID) ||
       process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-    if (googleClientId) {
+    if (googleClientId && googleClientId.trim().length > 10) {
       const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`);
       const scope = encodeURIComponent("openid email profile");
       window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}`;
