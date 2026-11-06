@@ -1,0 +1,16 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import http from 'node:http';
+import {createDemoServer} from './server.mjs';
+const server=createDemoServer();
+await new Promise(r=>server.listen(0,'127.0.0.1',r));
+const base=`http://127.0.0.1:${server.address().port}`;
+test.after(()=>new Promise(r=>server.close(r)));
+test('health endpoint',async()=>{const r=await fetch(base+'/healthz');assert.equal(r.status,200);assert.equal(await r.text(),'demo-ok')});
+test('home, demo and direct admin URL deliver branded application',async()=>{for(const route of ['/','/demo','/demo/','/demo?role=admin']){const r=await fetch(base+route);assert.equal(r.status,200);assert.match(await r.text(),/Biuro Rachunkowe Jarosław Konik/)}});
+test('compiled JS and CSS assets are served',async()=>{const html=await(await fetch(base)).text();const assets=[...html.matchAll(/(?:src|href)="(\/assets\/[^" ]+)"/g)].map(m=>m[1]);assert.ok(assets.length>=2);for(const a of assets){const r=await fetch(base+a);assert.equal(r.status,200);assert.ok((await r.arrayBuffer()).byteLength>0)}});
+test('security headers and no remote connections',async()=>{const r=await fetch(base);assert.equal(r.headers.get('x-frame-options'),'DENY');assert.equal(r.headers.get('x-content-type-options'),'nosniff');assert.match(r.headers.get('content-security-policy'),/connect-src 'none'/)});
+test('no write endpoints',async()=>{const r=await fetch(base+'/demo',{method:'POST',body:'test'});assert.equal(r.status,405)});
+test('HEAD has no body',async()=>{const r=await fetch(base,{method:'HEAD'});assert.equal(r.status,200);assert.equal(await r.text(),'')});
+test('unknown routes and private files are inaccessible',async()=>{for(const route of ['/server.mjs','/package.json','/missing','/assets/missing.js'])assert.equal((await fetch(base+route)).status,404)});
+test('encoded traversal is rejected',async()=>{const status=await new Promise((resolve,reject)=>{http.get({hostname:'127.0.0.1',port:server.address().port,path:'/assets/%2e%2e/server.mjs'},r=>{r.resume();resolve(r.statusCode)}).on('error',reject)});assert.equal(status,400)});
