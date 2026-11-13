@@ -5,6 +5,7 @@ import {Button} from "@/components/ui/button";
 import {Tabs,TabsList,TabsTrigger,TabsContent} from "@/components/ui/tabs";
 import {Textarea} from "@/components/ui/textarea";
 import {Dialog,DialogContent,DialogTitle,DialogDescription} from "@/components/ui/dialog";
+import {EdoreczeniaPanel} from "@/components/edoreczenia-panel";
 
 type Doc={
   id:number;
@@ -407,6 +408,7 @@ export default function Demo(){
             <TabsTrigger value="documents">Dokumenty & Walidator</TabsTrigger>
             <TabsTrigger value="contractors">Kontrahenci (GUS / REGON)</TabsTrigger>
             <TabsTrigger value="ksef">KSeF</TabsTrigger>
+            <TabsTrigger value="edoreczenia">e-Doręczenia (ADE)</TabsTrigger>
             <TabsTrigger value="zus">e-ZUS</TabsTrigger>
             <TabsTrigger value="reports">Raporty sztabowe</TabsTrigger>
             <TabsTrigger value="messages">Wiadomości</TabsTrigger>
@@ -761,6 +763,21 @@ export default function Demo(){
                 Faktury zarejestrowane przez bezpieczny panel uploadu są zabezpieczone przed duplikatami i przygotowane do kolejki RabbitMQ / KSeF.
               </p>
               {cards(visible.filter(d=>d.kind==="KSeF"))}
+            </section>
+          </TabsContent>
+
+          <TabsContent value="edoreczenia">
+            <section className="workspace-card" style={{borderLeft:"4px solid var(--accent, #059669)", marginBottom:"1.5rem"}}>
+              <div className="card-heading">
+                <h2>e-Doręczenia (ADE) · Skrzynka urzędowa i bieg terminów</h2>
+                <span className="status approved">mTLS Aktywny</span>
+              </div>
+              <p className="module-explainer">
+                Automatyczny bufor awiz ze skrzynek doręczeń elektronicznych. Zabezpieczenie przed nieautoryzowanym wystawieniem UPD oraz ścisły monitoring 14-dniowego biegu fikcji doręczenia (art. 42 ustawy o doręczeniach elektronicznych).
+              </p>
+              <div style={{marginTop:"1rem"}}>
+                <EdoreczeniaPanel />
+              </div>
             </section>
           </TabsContent>
 

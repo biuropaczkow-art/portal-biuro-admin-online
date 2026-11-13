@@ -1,0 +1,158 @@
+services:
+  portal-web:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: biuroadmin/portal-web:production
+    container_name: biuroadmin-portal-web
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 18080
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - internal-net
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:18080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    mem_limit: 512m
+    cpus: 1.0
+
+  ksef-worker:
+    build:
+      context: ../../../GitHub/ksef-outbox-pattern
+      dockerfile: Dockerfile
+    image: biuroadmin/ksef-worker:production
+    container_name: biuroadmin-ksef-worker
+    restart: always
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_SSL: "false"
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+      RABBITMQ_EXCHANGE: ksef.events
+      RABBITMQ_QUEUE: ksef.invoice.created
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      OUTBOX_POLL_INTERVAL_MS: 3000
+      OUTBOX_BATCH_SIZE: 50
+      OUTBOX_MAX_RETRIES: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal-net
+    mem_limit: 384m
+    cpus: 0.5
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: biuroadmin-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - internal-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 1024m
+
+  redis:
+    image: redis:7-alpine
+    container_name: biuroadmin-redis
+    restart: always
+    command: >
+      sh -c '
+        if [ -n "$REDIS_PASSWORD" ]; then
+          redis-server --requirepass "$REDIS_PASSWORD" --appendonly yes
+        else
+          redis-server --appendonly yes
+        fi
+      '
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    mem_limit: 256m
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: biuroadmin-rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - internal-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    mem_limit: 768m
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: biuroadmin-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - portal-web
+    networks:
+      - internal-net
+
+networks:
+  internal-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  caddy_data:
+  caddy_config:
