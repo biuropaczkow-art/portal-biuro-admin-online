@@ -1,2 +1,39 @@
 <!doctype html>
-<html lang="pl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="robots" content="noindex,nofollow"><meta name="description" content="Biuro Rachunkowe Jarosław Konik — demonstracja portalu klienta"><title>Biuro Rachunkowe Jarosław Konik — Demo</title><script src="/config.js"></script></head><body><div id="root"></div><noscript>Włącz JavaScript, aby otworzyć demonstrację portalu.</noscript><script type="module" src="/main.tsx"></script></body></html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="index, follow">
+  <meta name="description" content="Strefa Klienta Biura Rachunkowego Jarosław Konik — bezpieczna wymiana dokumentów, weryfikator Białej Listy VAT (GUS/KAS) oraz asynchroniczny walidator KSeF FA(3).">
+  <title>Strefa Klienta — Biuro Rachunkowe Jarosław Konik</title>
+  <link rel="canonical" href="https://portal.biuroadmin.online/">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate" type="text/markdown" title="LLM Context" href="https://portal.biuroadmin.online/llms.txt">
+  <link rel="modelcontext" type="application/webmcp+json" title="WebMCP Agent Tools" href="https://portal.biuroadmin.online/webmcp.json">
+  <script src="/config.js"></script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "@id": "https://portal.biuroadmin.online/#app",
+    "name": "Strefa Klienta Biura Rachunkowego Jarosław Konik",
+    "url": "https://portal.biuroadmin.online/",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "All",
+    "browserRequirements": "Requires JavaScript. Requires HTML5.",
+    "description": "Asynchroniczny portal klienta biura rachunkowego z weryfikatorem kontrahentów GUS/KAS (Biała Lista VAT) oraz 3-stopniowym walidatorem faktur KSeF FA(3) z sumami kontrolnymi SHA-256.",
+    "provider": {
+      "@type": "AccountingService",
+      "name": "Biuro Rachunkowe Jarosław Konik",
+      "url": "https://biuroadmin.online/",
+      "taxID": "7532190370"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+  <noscript>Włącz JavaScript, aby otworzyć Strefę Klienta portalu.</noscript>
+  <script type="module" src="/main.tsx"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+# Strefa Klienta — Biuro Rachunkowe Jarosław Konik
+
+> Interaktywny portal klienta (portal.biuroadmin.online) obsługujący bezpieczną wymianę dokumentów, weryfikację kontrahentów w rejestrach państwowych oraz asynchroniczne przetwarzanie faktur KSeF FA(3) z odpornością transakcyjną (Outbox Pattern).
+
+## Informacje o aplikacji i dostawcy
+- **Aplikacja:** Strefa Klienta Biura Rachunkowego Jarosław Konik
+- **Adres URL:** https://portal.biuroadmin.online/
+- **Dostawca:** Biuro Rachunkowe Jarosław Konik (NIP: 7532190370, REGON: 160059549)
+- **Strona główna biura:** https://biuroadmin.online/
+- **Kontakt:** kontakt@biuroadmin.online | tel. +48 77 431 66 11
+
+## Kluczowe moduły operacyjne
+- **Weryfikacja Kontrahenta (GUS / REGON / Biała Lista VAT):**
+  - Bezpośrednia integracja z oficjalnym API Ministerstwa Finansów / KAS (`https://wl-api.mf.gov.pl/api/search/nip/{nip}`).
+  - Architektura beztokenowa z nagłówkiem CORS (`Access-Control-Allow-Origin: *`).
+  - Walidacja sumy kontrolnej NIP (mod 11).
+  - Pobieranie statusu podatnika VAT, numeru rachunku bankowego oraz danych adresowych.
+- **Walidator Duplikatów i KSeF FA(3):**
+  - Wyliczanie skrótu kryptograficznego SHA-256 z pliku faktury w przeglądarce (`crypto.subtle.digest`).
+  - Sprawdzenie klucza biznesowego: `(sellerNip, invoiceNumber, issueDate)`.
+  - Blokada podwójnego księgowania (`DUPLICATE_FILE_HASH`, `DUPLICATE_BUSINESS_KEY`).
+- **Przesyłanie dokumentów i archiwizacja:**
+  - Bezpieczny transfer faktur kosztowych i sprzedażowych do księgowości.
+  - Historia wersji i pełna identyfikowalność.
+
+## Interfejsy narzędziowe dla agentów (WebMCP)
+- [Narzędzia WebMCP (webmcp.json)](https://portal.biuroadmin.online/webmcp.json): Zdeklarowane narzędzia dla agentów autonomicznych do weryfikacji NIP w bazie Białej Listy oraz sprawdzania parametrów integracji KSeF.
+- [Strona Główna Biura (biuroadmin.online)](https://biuroadmin.online/): Pełne kompendium wiedzy o ofercie biura i publikacje eksperckie.

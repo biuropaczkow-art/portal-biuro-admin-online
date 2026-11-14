@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "Portal Biuro Admin - Agent Tools",
+  "version": "1.0.0",
+  "description": "Natywna specyfikacja narzędzi WebMCP dla Strefy Klienta (portal.biuroadmin.online).",
+  "tools": [
+    {
+      "name": "verifyVatWhitelistByNip",
+      "description": "Weryfikuje status czynnego podatnika VAT oraz rachunki bankowe kontrahenta na Białej Liście Ministerstwa Finansów / KAS po numerze NIP.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "nip": {
+            "type": "string",
+            "description": "10-cyfrowy numer identyfikacji podatkowej NIP bez kresek."
+          }
+        },
+        "required": ["nip"]
+      }
+    },
+    {
+      "name": "validateInvoiceHashSha256",
+      "description": "Zwraca zasady weryfikacji kryptograficznej SHA-256 i unikalności klucza biznesowego dla faktur KSeF FA(3) w portalu.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ]
+}

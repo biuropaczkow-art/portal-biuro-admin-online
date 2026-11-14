@@ -2,3 +2,7 @@ User-agent: *
 Allow: /
 
 Sitemap: https://biuroadmin.online/sitemap.xml
+
+# LLM & Agent Knowledge Base
+# Standard: https://llmstxt.org/
+# https://portal.biuroadmin.online/llms.txt

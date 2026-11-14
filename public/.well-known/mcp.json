@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "portal-biuroadmin": {
+      "name": "Portal Biuro Admin Tools",
+      "url": "https://portal.biuroadmin.online/webmcp.json",
+      "description": "Client portal agent tools for VAT Whitelist verification and KSeF duplicate checking."
+    }
+  }
+}
