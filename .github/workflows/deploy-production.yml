@@ -1,0 +1,61 @@
+name: Production CI/CD Deploy (Hostinger KVM)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-portal-production
+  cancel-in-progress: false
+
+jobs:
+  quality-gate:
+    name: Quality Gate & Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies (clean install)
+        run: npm ci
+
+      - name: Run Vitest regression test suite
+        run: npx vitest run
+
+      - name: Verify Vite build for VPS
+        run: |
+          npx vite build --config deploy/vps/vite.config.ts
+          node --test deploy/vps/server.test.mjs
+
+  deploy:
+    name: Deploy to Hostinger KVM
+    needs: [ quality-gate ]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH agent and deploy key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.HOSTINGER_SSH_KEY }}
+
+      - name: Execute zero-downtime deployment on Hostinger KVM
+        env:
+          HOST: ${{ secrets.HOSTINGER_HOST || '2.24.145.129' }}
+          USER: ${{ secrets.HOSTINGER_USER || 'root' }}
+          PORT: ${{ secrets.HOSTINGER_PORT || '22' }}
+        run: |
+          echo "Connecting to Hostinger KVM ($USER@$HOST:$PORT)..."
+          ssh -o StrictHostKeyChecking=accept-new -p "$PORT" "$USER@$HOST" "/opt/biuroadmin/deploy.sh portal"
+
+      - name: Verify public production health status
+        run: |
+          echo "Verifying public HTTPS endpoint..."
+          curl -fsS -I https://portal.biuroadmin.online
+          echo "Portal web production health verified successfully!"
