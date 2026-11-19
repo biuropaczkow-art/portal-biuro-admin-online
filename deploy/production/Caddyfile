@@ -1,10 +1,21 @@
 portal.biuroadmin.online {
     encode gzip zstd
 
-    reverse_proxy portal-web:18080 {
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
+    handle /api/ksef/* {
+        uri strip_prefix /api/ksef
+        reverse_proxy ksef-worker:3001 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    handle {
+        reverse_proxy portal-web:18080 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
     }
 
     header {

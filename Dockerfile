@@ -4,7 +4,11 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-RUN npm run build
+RUN npx vite build --config deploy/vps/vite.config.ts && \
+    cp deploy/vps/site/index.html deploy/vps/site/404.html && \
+    mkdir -p deploy/vps/site/demo deploy/vps/site/auth/callback && \
+    cp deploy/vps/site/index.html deploy/vps/site/demo/index.html && \
+    cp deploy/vps/site/index.html deploy/vps/site/auth/callback/index.html
 
 # Stage 2: Serve
 FROM node:24-alpine
