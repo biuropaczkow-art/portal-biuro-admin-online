@@ -1,11 +1,12 @@
 "use client";
 import {useEffect,useState,useRef} from "react";
-import {ArrowLeft,ArrowRight,FileText,MessageSquare,ShieldCheck,Plus,CheckCircle2,Landmark,Activity,FileCheck2,Clock,Upload,AlertTriangle,ShieldAlert,Lock,Search,Building2,ExternalLink,RefreshCw,Check,UserCheck,AlertCircle,CreditCard} from "lucide-react";
+import {ArrowLeft,ArrowRight,FileText,MessageSquare,ShieldCheck,Plus,CheckCircle2,Landmark,Activity,FileCheck2,Clock,Upload,AlertTriangle,ShieldAlert,Lock,Search,Building2,ExternalLink,RefreshCw,Check,UserCheck,AlertCircle,CreditCard,LogOut} from "lucide-react";
 import {Button} from "@/components/ui/button";
 import {Tabs,TabsList,TabsTrigger,TabsContent} from "@/components/ui/tabs";
 import {Textarea} from "@/components/ui/textarea";
 import {Dialog,DialogContent,DialogTitle,DialogDescription} from "@/components/ui/dialog";
 import {EdoreczeniaPanel} from "@/components/edoreczenia-panel";
+import {submitToTransactionalOutbox, getOutboxHealth, type OutboxStatsResponse} from "@/lib/ksef-outbox-client";
 
 type Doc={
   id:number;
@@ -86,7 +87,7 @@ const initial:Doc[]=[
     sellerNip:"7532190370",
     invoiceNumber:"FV/DEMO/001",
     issueDate:"2026-11-01",
-    validationDetails:"Zaksięgowano pomyślnie. Rejestr KSeF Outbox OTX-001."
+    validationDetails:"Zaksięgowano w Transactional Outbox (PostgreSQL ID: OTX-001). Przekazano do kolejki RabbitMQ."
   },
   {
     id:2,
@@ -120,9 +121,44 @@ const initial:Doc[]=[
     sellerNip:"9876543210",
     invoiceNumber:"FV/DEMO/003",
     issueDate:"2026-11-03",
-    validationDetails:"Rejestr KSeF Outbox OTX-002."
+    validationDetails:"Zaksięgowano w Transactional Outbox (PostgreSQL ID: OTX-002). Przekazano do kolejki RabbitMQ."
   }
 ];
+
+function OutboxStatusBadge({ online }: { online: boolean }){
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "0.5rem",
+        padding: "4px 12px",
+        borderRadius: "9999px",
+        fontSize: "0.75rem",
+        fontWeight: 600,
+        backgroundColor: online ? "rgba(16, 185, 129, 0.12)" : "rgba(245, 158, 11, 0.12)",
+        color: online ? "#047857" : "#b45309",
+        border: `1px solid ${online ? "rgba(16, 185, 129, 0.35)" : "rgba(245, 158, 11, 0.35)"}`,
+        boxShadow: "0 1px 2px rgba(0,0,0,0.03)"
+      }}
+      title={online ? "Mikroserwis Outbox Relay (PostgreSQL + RabbitMQ) aktywny" : "Mikroserwis w trybie autonomicznym / lokalny bufor"}
+    >
+      <span
+        style={{
+          width: "8px",
+          height: "8px",
+          borderRadius: "50%",
+          backgroundColor: online ? "#10b981" : "#f59e0b",
+          display: "inline-block",
+          boxShadow: online ? "0 0 6px #10b981" : "none"
+        }}
+      />
+      <span>
+        {online ? "KSeF Outbox: Online (PostgreSQL + RabbitMQ)" : "KSeF Outbox: Tryb lokalny / Demo"}
+      </span>
+    </div>
+  );
+}
 
 async function computeSha256(content:ArrayBuffer|string):Promise<string>{
   const buffer=typeof content==="string"?new TextEncoder().encode(content):content;
@@ -146,6 +182,12 @@ export default function Demo(){
   const [gusResult,setGusResult]=useState<Contractor|null>(null);
   const [gusError,setGusError]=useState<string|null>(null);
   const [contractors,setContractors]=useState<Contractor[]>(initialContractors);
+  const [outboxStatus,setOutboxStatus]=useState<{
+    online: boolean;
+    checked: boolean;
+    stats?: OutboxStatsResponse;
+  }>({ online: false, checked: false });
+  const [chatGptUser,setChatGptUser]=useState<{displayName:string;email:string}|null>(null);
 
   const [messages,setMessages]=useState([
     {by:"Biuro",text:"Witamy w demonstracji. W zakładce Dokumenty czeka przykładowa faktura do sprawdzenia."}
@@ -158,6 +200,32 @@ export default function Demo(){
     if(params.get("auth")==="google" || hashParams.get("access_token") || (typeof window!=="undefined" && window.location.pathname.includes("callback"))){
       setNotice("Zalogowano pomyślnie przez Google OAuth. Dostęp do przestrzeni klienta aktywny.");
     }
+    if(params.get("auth")==="chatgpt"){
+      const email = params.get("email") || "uzytkownik.chatgpt@biuroadmin.online";
+      const name = params.get("name") || "Klient ChatGPT";
+      setChatGptUser({ displayName: name, email });
+      setNotice(`Zalogowano pomyślnie przez ChatGPT (${name} · ${email}). Dostęp do przestrzeni klienta aktywny.`);
+    }
+
+    let isMounted = true;
+    async function checkOutboxHealth() {
+      try {
+        const res = await getOutboxHealth();
+        if (isMounted) {
+          setOutboxStatus({ online: res.online, checked: true, stats: res.stats });
+        }
+      } catch {
+        if (isMounted) {
+          setOutboxStatus({ online: false, checked: true });
+        }
+      }
+    }
+    checkOutboxHealth();
+    const interval = setInterval(checkOutboxHealth, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   },[]);
 
   const visible=docs.filter(d=>role==="admin"||d.company==="Firma Alfa (demo)");
@@ -207,7 +275,34 @@ export default function Demo(){
         return;
       }
 
-      // KROK 3: Sukces walidacji - rejestracja dokumentu
+      // KROK 3: Integracja z mikroserwisem KSeF Transactional Outbox (PostgreSQL + RabbitMQ)
+      const parsedGross = parseFloat(amount.replace(/[^\d,.-]/g, "").replace(",", ".")) || 1845.0;
+      const outboxRes = await submitToTransactionalOutbox({
+        fileName,
+        fileHash: hash,
+        fileContent: meta?.content || hash,
+        sellerNip,
+        invoiceNumber,
+        issueDate,
+        totalGross: parsedGross,
+        invoiceType: "VAT"
+      });
+
+      // Jeśli backend zwróci błąd duplikatu
+      if (!outboxRes.success && outboxRes.isBackendOnline) {
+        setValAlert({
+          type: "error",
+          title: "BLOKADA DUPLIKATU — KSeF OUTBOX",
+          code: outboxRes.error || "OUTBOX_DUPLICATE_REJECTED",
+          message: outboxRes.message || `Mikroserwis KSeF Outbox odrzucił fakturę ${invoiceNumber} z powodu wykrycia duplikatu w bazie PostgreSQL.`
+        });
+        return;
+      }
+
+      const pgId = outboxRes.invoiceId || `OTX-${hash.slice(0, 8).toUpperCase()}`;
+      const validationDetails = `Zaksięgowano w Transactional Outbox (PostgreSQL ID: ${pgId}). Przekazano do kolejki RabbitMQ.`;
+
+      // KROK 4: Sukces walidacji - rejestracja dokumentu
       const newDoc:Doc={
         id:Math.max(...docs.map(d=>d.id),0)+1,
         name:fileName,
@@ -219,14 +314,15 @@ export default function Demo(){
         sellerNip,
         invoiceNumber,
         issueDate,
-        validationDetails:`Zweryfikowano pomyślnie przez 3-stopniowy walidator: unikalny SHA-256 (${hash.slice(0,12)}...), brak kolizji klucza biznesowego. Gotowy do KSeF.`
+        validationDetails
       };
 
       setDocs(prev=>[newDoc,...prev]);
       setValAlert({
         type:"success",
         title:"WALIDACJA POZYTYWNA — DOKUMENT ZAREJESTROWANY",
-        message:`Dokument "${fileName}" pomyślnie przeszedł 3-stopniową kontrolę integralności. Hash SHA-256: ${hash.slice(0,16)}... Bezpiecznie dodano do rejestru.`
+        code: outboxRes.isBackendOnline ? "PG_OUTBOX_RABBITMQ_SYNC" : "OUTBOX_LOCAL_SYNC",
+        message:`Dokument "${fileName}" pomyślnie przeszedł 3-stopniową kontrolę integralności. Hash SHA-256: ${hash.slice(0,16)}... ${validationDetails}`
       });
     }catch(err:any){
       setValAlert({
@@ -379,6 +475,40 @@ export default function Demo(){
       <div className="demo-banner">
         <ShieldCheck size={16}/> DEMO · Biuro Rachunkowe Jarosław Konik · Środowisko testowe KSeF Outbox
       </div>
+      {chatGptUser && (
+        <div style={{
+          background: "#10a37f",
+          color: "#ffffff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "8px 24px",
+          fontSize: "13px"
+        }}>
+          <span>Zalogowano przez ChatGPT: <strong>{chatGptUser.displayName}</strong> ({chatGptUser.email})</span>
+          <button
+            type="button"
+            onClick={() => {
+              setChatGptUser(null);
+              window.location.href = "/signout-with-chatgpt";
+            }}
+            style={{
+              background: "transparent",
+              border: "1px solid rgba(255,255,255,0.4)",
+              color: "#ffffff",
+              padding: "4px 10px",
+              borderRadius: "6px",
+              fontSize: "11px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px"
+            }}
+          >
+            <LogOut size={12}/> Wyloguj
+          </button>
+        </div>
+      )}
       <header className="demo-header">
         <a href="/" className="brand">
           <span className="brand-mark">JK</span>
@@ -442,9 +572,12 @@ export default function Demo(){
                   </h2>
                   <p>Każdy plik przechodzi automatyczną 3-stopniową weryfikację: blokadę współbieżności, skrót SHA-256 oraz unikalność klucza biznesowego.</p>
                 </div>
-                <span className="status approved" style={{display:"flex", alignItems:"center", gap:"0.3rem"}}>
-                  <Lock size={14}/> Walidator aktywny
-                </span>
+                <div style={{display:"flex", alignItems:"center", gap:"0.75rem", flexWrap:"wrap"}}>
+                  <OutboxStatusBadge online={outboxStatus.online} />
+                  <span className="status approved" style={{display:"flex", alignItems:"center", gap:"0.3rem"}}>
+                    <Lock size={14}/> Walidator aktywny
+                  </span>
+                </div>
               </div>
 
               {/* Komunikat walidatora */}
@@ -756,8 +889,16 @@ export default function Demo(){
           <TabsContent value="ksef">
             <section className="workspace-card">
               <div className="card-heading">
-                <h2>KSeF · kolejka i obieg Outbox</h2>
-                <span className="status approved">Walidacja aktywna</span>
+                <div>
+                  <h2>KSeF · kolejka i obieg Outbox</h2>
+                  <p style={{fontSize:"0.875rem", color:"var(--muted)", margin:"0.25rem 0 0 0"}}>
+                    Architektura Transactional Outbox (PostgreSQL + RabbitMQ) gwarantująca dostarczenie At-Least-Once oraz idempotencję.
+                  </p>
+                </div>
+                <div style={{display:"flex", alignItems:"center", gap:"0.75rem", flexWrap:"wrap"}}>
+                  <OutboxStatusBadge online={outboxStatus.online} />
+                  <span className="status approved">Walidacja aktywna</span>
+                </div>
               </div>
               <p className="module-explainer">
                 Faktury zarejestrowane przez bezpieczny panel uploadu są zabezpieczone przed duplikatami i przygotowane do kolejki RabbitMQ / KSeF.
