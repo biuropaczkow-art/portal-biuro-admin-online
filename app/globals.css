@@ -26,3 +26,6 @@
 .google-button{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:999px;background:#ffffff;color:#1f2937;font-size:12px;font-weight:600;cursor:pointer;transition:background-color .15s,border-color .15s;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .google-button:hover{background:#f8fafc;border-color:#cbd5e1}
 .google-button svg{flex-shrink:0}
+.chatgpt-button{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px;margin-top:8px;border:1px solid #10a37f;border-radius:999px;background:#10a37f;color:#ffffff;font-size:12px;font-weight:600;cursor:pointer;transition:background-color .15s,border-color .15s;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.chatgpt-button:hover{background:#0d8a6a;border-color:#0d8a6a}
+.chatgpt-button svg{flex-shrink:0}
