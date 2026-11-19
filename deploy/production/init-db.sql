@@ -127,6 +127,50 @@ CREATE TABLE IF NOT EXISTS edoreczenia_messages (
 );
 
 -- ============================================================================
+-- USERS TABLE - Authentication & Role-Based Access Control (RBAC) (Zadanie W-04)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    name VARCHAR(255),
+    role VARCHAR(50) NOT NULL DEFAULT 'CLIENT', -- ADMIN, ACCOUNTANT, CLIENT
+    provider VARCHAR(50) NOT NULL DEFAULT 'google', -- google, chatgpt
+    provider_id VARCHAR(255),
+    nip VARCHAR(10),
+    company_name VARCHAR(255),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_login_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_nip ON users(nip);
+
+-- ============================================================================
+-- USER SESSIONS TABLE - Persistent Sessions with Redis Caching (Zadanie W-04)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    session_token VARCHAR(255) NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    user_agent TEXT,
+    ip_address VARCHAR(45),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(session_token);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at);
+
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
 -- TRIGGER: Update updated_at timestamp
 -- ============================================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()

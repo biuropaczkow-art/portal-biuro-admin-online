@@ -5,7 +5,11 @@ import Demo from '../../app/demo/page';
 import '../../app/globals.css';
 
 const route = window.location.pathname.replace(/\/$/, '') || '/';
-const isWorkspace = route === '/demo' || route === '/auth/callback' || route.startsWith('/demo');
+const isWorkspace = route === '/demo' || 
+  route === '/auth/callback' || 
+  route.startsWith('/demo') || 
+  route.startsWith('/signin') || 
+  route.startsWith('/signout');
 
 createRoot(document.getElementById('root')!).render(
   isWorkspace ? <Demo /> : <Home />

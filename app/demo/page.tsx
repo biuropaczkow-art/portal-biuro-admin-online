@@ -7,6 +7,13 @@ import {Textarea} from "@/components/ui/textarea";
 import {Dialog,DialogContent,DialogTitle,DialogDescription} from "@/components/ui/dialog";
 import {EdoreczeniaPanel} from "@/components/edoreczenia-panel";
 import {submitToTransactionalOutbox, getOutboxHealth, type OutboxStatsResponse} from "@/lib/ksef-outbox-client";
+import {
+  getCurrentSession,
+  loginUser,
+  logoutUser,
+  storeSessionToken,
+  type AuthUser
+} from "@/lib/auth-client";
 
 type Doc={
   id:number;
@@ -188,6 +195,7 @@ export default function Demo(){
     stats?: OutboxStatsResponse;
   }>({ online: false, checked: false });
   const [chatGptUser,setChatGptUser]=useState<{displayName:string;email:string}|null>(null);
+  const [sessionUser,setSessionUser]=useState<AuthUser|null>(null);
 
   const [messages,setMessages]=useState([
     {by:"Biuro",text:"Witamy w demonstracji. W zakładce Dokumenty czeka przykładowa faktura do sprawdzenia."}
@@ -196,16 +204,58 @@ export default function Demo(){
   useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
     const hashParams=typeof window!=="undefined"?new URLSearchParams(window.location.hash.replace(/^#/,'')):new URLSearchParams();
-    if(params.get("role")==="admin") setRole("admin");
-    if(params.get("auth")==="google" || hashParams.get("access_token") || (typeof window!=="undefined" && window.location.pathname.includes("callback"))){
-      setNotice("Zalogowano pomyślnie przez Google OAuth. Dostęp do przestrzeni klienta aktywny.");
+    
+    const urlToken = params.get("token");
+    if (urlToken) {
+      storeSessionToken(urlToken);
     }
-    if(params.get("auth")==="chatgpt"){
-      const email = params.get("email") || "uzytkownik.chatgpt@biuroadmin.online";
-      const name = params.get("name") || "Klient ChatGPT";
-      setChatGptUser({ displayName: name, email });
-      setNotice(`Zalogowano pomyślnie przez ChatGPT (${name} · ${email}). Dostęp do przestrzeni klienta aktywny.`);
+
+    let isMounted = true;
+
+    async function syncAuthAndSession() {
+      try {
+        if(params.get("auth")==="google" || hashParams.get("access_token") || (typeof window!=="undefined" && window.location.pathname.includes("callback"))){
+          const email = params.get("email") || "admin@biuroadmin.online";
+          const name = params.get("name") || "Jarosław Konik";
+          const loginRes = await loginUser({ provider: "GOOGLE", email, name });
+          if (isMounted && loginRes.success && loginRes.user) {
+            setSessionUser(loginRes.user);
+            if (loginRes.user.role === "ADMIN") setRole("admin");
+            setNotice(`Zalogowano pomyślnie przez Google OAuth (${loginRes.user.name} · ${loginRes.user.email} · Rola: ${loginRes.user.role}).`);
+            return;
+          }
+        }
+
+        if(params.get("auth")==="chatgpt"){
+          const email = params.get("email") || "uzytkownik.chatgpt@biuroadmin.online";
+          const name = params.get("name") || "Klient ChatGPT";
+          const loginRes = await loginUser({ provider: "CHATGPT", email, name });
+          if (isMounted && loginRes.success && loginRes.user) {
+            setSessionUser(loginRes.user);
+            setChatGptUser({ displayName: loginRes.user.name, email: loginRes.user.email });
+            if (loginRes.user.role === "ADMIN") setRole("admin");
+            setNotice(`Zalogowano pomyślnie przez ChatGPT (${loginRes.user.name} · ${loginRes.user.email} · Rola: ${loginRes.user.role}).`);
+            return;
+          }
+        }
+
+        const current = await getCurrentSession();
+        if (isMounted && current.success && current.user) {
+          setSessionUser(current.user);
+          if (current.user.role === "ADMIN") setRole("admin");
+          if (current.user.provider === "CHATGPT") {
+            setChatGptUser({ displayName: current.user.name, email: current.user.email });
+          }
+          setNotice(`Aktywna sesja: ${current.user.name} (${current.user.email}) · Rola: ${current.user.role}`);
+        } else if (params.get("role") === "admin") {
+          setRole("admin");
+        }
+      } catch (err) {
+        console.warn("Błąd synchronizacji sesji:", err);
+      }
     }
+
+    syncAuthAndSession();
 
     let isMounted = true;
     async function checkOutboxHealth() {
@@ -475,9 +525,9 @@ export default function Demo(){
       <div className="demo-banner">
         <ShieldCheck size={16}/> DEMO · Biuro Rachunkowe Jarosław Konik · Środowisko testowe KSeF Outbox
       </div>
-      {chatGptUser && (
+      {(sessionUser || chatGptUser) && (
         <div style={{
-          background: "#10a37f",
+          background: sessionUser?.role === 'ADMIN' ? "#1e3a8a" : "#10a37f",
           color: "#ffffff",
           display: "flex",
           alignItems: "center",
@@ -485,11 +535,34 @@ export default function Demo(){
           padding: "8px 24px",
           fontSize: "13px"
         }}>
-          <span>Zalogowano przez ChatGPT: <strong>{chatGptUser.displayName}</strong> ({chatGptUser.email})</span>
+          <span>
+            Zalogowano ({sessionUser?.provider || 'CHATGPT'}): <strong>{sessionUser?.name || chatGptUser?.displayName}</strong> ({sessionUser?.email || chatGptUser?.email})
+            {sessionUser?.role && (
+              <span style={{
+                marginLeft: "8px",
+                background: "rgba(255,255,255,0.2)",
+                padding: "2px 8px",
+                borderRadius: "4px",
+                fontSize: "11px",
+                fontWeight: 600,
+                letterSpacing: "0.5px"
+              }}>
+                ROLA: {sessionUser.role}
+              </span>
+            )}
+            <span style={{ marginLeft: "8px", opacity: 0.8, fontSize: "11px" }}>
+              · Baza PostgreSQL & Redis OK
+            </span>
+          </span>
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
+              try {
+                await logoutUser();
+              } catch {}
+              setSessionUser(null);
               setChatGptUser(null);
+              setNotice("Wylogowano z systemu.");
               window.location.href = "/signout-with-chatgpt";
             }}
             style={{
