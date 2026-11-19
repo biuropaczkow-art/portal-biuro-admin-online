@@ -257,7 +257,6 @@ export default function Demo(){
 
     syncAuthAndSession();
 
-    let isMounted = true;
     async function checkOutboxHealth() {
       try {
         const res = await getOutboxHealth();
