@@ -3,7 +3,18 @@ import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 const root=fileURLToPath(new URL('./site/',import.meta.url));
-const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.ico':'image/x-icon','.woff2':'font/woff2'};
+const types={
+  '.html':'text/html; charset=utf-8',
+  '.js':'text/javascript; charset=utf-8',
+  '.css':'text/css; charset=utf-8',
+  '.json':'application/json; charset=utf-8',
+  '.png':'image/png',
+  '.jpg':'image/jpeg',
+  '.svg':'image/svg+xml',
+  '.ico':'image/x-icon',
+  '.woff2':'font/woff2'
+};
+
 export function createDemoServer(){
  const server=http.createServer(async(req,res)=>{
   res.setHeader('X-Content-Type-Options','nosniff');
@@ -22,36 +33,38 @@ export function createDemoServer(){
   let file;
   if(['/','/demo','/demo/','/auth/callback','/signin-with-chatgpt','/signout-with-chatgpt'].includes(route)) {
     file='index.html';
-  } else if(route.startsWith('/assets/')||['/og.png','/favicon.svg','/favicon.ico'].includes(route)) {
-    file=route.slice(1);
   } else {
-    // SPA fallback dla innych tras
-    file='index.html';
+    file=route.replace(/^\//,'');
   }
   
   try {
     const data=await readFile(path.join(root,file));
-    res.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream','Content-Length':data.length});
-    res.end(req.method==='HEAD'?undefined:data);
+    res.writeHead(200,{
+      'Content-Type':types[path.extname(file)]||'application/octet-stream',
+      'Content-Length':data.length
+    });
+    return res.end(req.method==='HEAD'?undefined:data);
   } catch {
-    // Jeżeli plik zasobu nie istnieje, serwujemy index.html jako fallback SPA
-    try {
-      const fallback=await readFile(path.join(root,'index.html'));
-      res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Content-Length':fallback.length});
-      res.end(req.method==='HEAD'?undefined:fallback);
-    } catch {
-      res.writeHead(404);
-      res.end('Not found');
+    // Jeżeli plik nie istnieje i nie ma rozszerzenia (np. trasa podstrony), serwujemy index.html jako fallback SPA
+    if(!path.extname(file)) {
+      try {
+        const fallback=await readFile(path.join(root,'index.html'));
+        res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Content-Length':fallback.length});
+        return res.end(req.method==='HEAD'?undefined:fallback);
+      } catch {}
     }
+    res.writeHead(404);
+    res.end('Not found');
   }
  });
  server.requestTimeout=15000;server.headersTimeout=10000;server.keepAliveTimeout=5000;server.maxHeadersCount=50;
  return server;
 }
+
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const port=Number(process.env.PORT||18080),host=process.env.HOST||'127.0.0.1';
  if(!Number.isInteger(port)||port<1024||port>65535)throw Error('PORT must be 1024..65535');
  const server=createDemoServer();
- server.listen(port,host,()=>console.log(`Demo listening on ${host}:${port}; connect-src 'self' enabled`));
+ server.listen(port,host,()=>console.log(`Demo listening on ${host}:${port}; JSON and static assets supported`));
  for(const signal of ['SIGTERM','SIGINT'])process.on(signal,()=>server.close(()=>process.exit(0)));
 }
