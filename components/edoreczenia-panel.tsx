@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,76 +22,80 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ShieldAlert, MailCheck, Clock, FileText, AlertTriangle } from "lucide-react";
+import {
+  ShieldAlert,
+  ShieldCheck,
+  MailCheck,
+  Clock,
+  FileText,
+  AlertTriangle,
+  Loader2,
+  RefreshCw,
+} from "lucide-react";
+import {
+  EdoreczeniaItem,
+  EdoreczeniaStatus,
+  fetchEdoreczeniaMessages,
+  signEdoreczeniaUpd,
+} from "@/lib/edoreczenia-client";
 
-export type EdoreczeniaStatus =
-  | "AWIZO_OCZEKUJE"      // Nowe pismo na skrzynce ADE, nieodebrane (brak UPD)
-  | "ODEBRANE_UPD"        // Odebrano manualnie, wygenerowano UPD, bieg terminu ruszył
-  | "FIKCJA_DORECZENIA";  // Minęło 14 dni od awizo, fikcja doręczenia z mocy prawa
-
-export interface EdoreczeniaItem {
-  id: string;
-  sender: string;
-  subject: string;
-  caseReference: string;
-  receivedAt: string;          // ISO data wpłynięcia do ADE
-  fictionDeadlineAt: string;   // receivedAt + 14 dni
-  status: EdoreczeniaStatus;
-  updGeneratedAt?: string;
-  proceduralDaysLimit?: number; // np. 7 lub 14 dni na odpowiedź
-}
-
-const INITIAL_MOCK_ITEMS: EdoreczeniaItem[] = [
-  {
-    id: "EDO-2026-11-09-001",
-    sender: "Urząd Skarbowy w Nysie",
-    subject: "Zawiadomienie o zamiarze wszczęcia kontroli podatkowej",
-    caseReference: "1608-SPV.410.12.2026",
-    receivedAt: "2026-11-09T08:15:00Z",
-    fictionDeadlineAt: "2026-11-23T23:59:59Z",
-    status: "AWIZO_OCZEKUJE",
-    proceduralDaysLimit: 7,
-  },
-  {
-    id: "EDO-2026-11-04-042",
-    sender: "ZUS Oddział w Opolu",
-    subject: "Zawiadomienie o korekcie podstawy wymiaru składek ZUS DRA",
-    caseReference: "ZUS-OP-2026-9812",
-    receivedAt: "2026-11-04T10:00:00Z",
-    fictionDeadlineAt: "2026-11-18T23:59:59Z",
-    status: "ODEBRANE_UPD",
-    updGeneratedAt: "2026-11-05T14:20:00Z",
-    proceduralDaysLimit: 14,
-  },
-  {
-    id: "EDO-2026-10-15-089",
-    sender: "Sąd Rejonowy w Opolu, Wydział Gospodarczy",
-    subject: "Zarządzenie sądu w sprawie wpisu zmian w KRS",
-    caseReference: "OP.VIII.Ns-Rej.KRS/1420/26",
-    receivedAt: "2026-10-15T09:00:00Z",
-    fictionDeadlineAt: "2026-10-29T23:59:59Z",
-    status: "FIKCJA_DORECZENIA",
-    proceduralDaysLimit: 7,
-  },
-];
+export type { EdoreczeniaStatus, EdoreczeniaItem };
 
 export function EdoreczeniaPanel() {
-  const [items, setItems] = useState<EdoreczeniaItem[]>(INITIAL_MOCK_ITEMS);
+  const [items, setItems] = useState<EdoreczeniaItem[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isBackendOnline, setIsBackendOnline] = useState<boolean>(false);
   const [selectedForReceipt, setSelectedForReceipt] = useState<EdoreczeniaItem | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleConfirmReceipt = (item: EdoreczeniaItem) => {
-    setItems((prev) =>
-      prev.map((i) =>
-        i.id === item.id
-          ? {
-              ...i,
-              status: "ODEBRANE_UPD",
-              updGeneratedAt: new Date().toISOString(),
-            }
-          : i
-      )
-    );
-    setSelectedForReceipt(null);
+  const loadMessages = async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const data = await fetchEdoreczeniaMessages();
+      setItems(data);
+      setIsBackendOnline(Boolean(data.isBackendOnline));
+    } catch (err: any) {
+      console.error("Błąd pobierania pism ADE:", err);
+      setErrorMessage("Nie udało się pobrać listy pism ADE.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMessages();
+  }, []);
+
+  const handleConfirmReceipt = async (item: EdoreczeniaItem) => {
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    try {
+      const result = await signEdoreczeniaUpd(item.id, "Jarosław Konik (Doradca Podatkowy)");
+      if (result.success && result.message) {
+        const updatedMsg = result.message;
+        setItems((prev) =>
+          prev.map((i) =>
+            i.id === item.id || i.id === updatedMsg.id
+              ? {
+                  ...i,
+                  ...updatedMsg,
+                  status: "ODEBRANE_UPD",
+                  updGeneratedAt: updatedMsg.updGeneratedAt || updatedMsg.updSignedAt || new Date().toISOString(),
+                }
+              : i
+          )
+        );
+      } else {
+        setErrorMessage(result.error || "Wystąpił błąd podczas wystawiania UPD.");
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || "Błąd komunikacji z modułem e-Doręczeń.");
+    } finally {
+      setIsSubmitting(false);
+      setSelectedForReceipt(null);
+    }
   };
 
   const calculateDaysRemaining = (deadlineIso: string): number => {
@@ -101,6 +105,51 @@ export function EdoreczeniaPanel() {
 
   return (
     <div className="space-y-6">
+      {/* Pasek statusu bezpieczeństwa i połączenia mTLS */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-muted/40 border border-border rounded-lg text-xs">
+        <div className="flex items-center gap-2">
+          <Badge
+            variant="outline"
+            className="border-emerald-600/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 font-medium"
+          >
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            Certyfikat mTLS ADE Aktywny (QWAC)
+          </Badge>
+          {isBackendOnline ? (
+            <Badge
+              variant="outline"
+              className="border-blue-600/50 bg-blue-500/10 text-blue-700 dark:text-blue-300 flex items-center gap-1.5 font-medium"
+            >
+              <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+              Mikroserwis ADE Online (:3001)
+            </Badge>
+          ) : (
+            <Badge
+              variant="outline"
+              className="border-muted text-muted-foreground flex items-center gap-1.5"
+            >
+              <span className="h-2 w-2 rounded-full bg-muted-foreground/60" />
+              Tryb Lokalny / Offline Fallback
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-muted-foreground hidden sm:inline">
+            Protokół: <strong>e-Doręczenia v2.1 (Gov.pl)</strong>
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={loadMessages}
+            disabled={isLoading}
+            className="h-7 px-2 text-xs"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isLoading ? "animate-spin" : ""}`} />
+            Odśwież
+          </Button>
+        </div>
+      </div>
+
       {/* Alert bezpieczeństwa procesowego */}
       <Alert className="border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200">
         <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400" />
@@ -111,11 +160,28 @@ export function EdoreczeniaPanel() {
           Zgodnie z art. 41 i 42 Ustawy o doręczeniach elektronicznych, portal
           <strong> nie pobiera pism automatycznie</strong>. Odebranie pisma i
           wystawienie Urzędowego Poświadczenia Doręczenia (UPD) natychmiast
-          rozpoczyna bieg urzędowych terminów procesowych. W przypadku braku
-          manualnego odbioru pismo zostanie uznane za doręczone z upływem 14 dni
+          rozpoczyna bieg urzędowych terminów procesowych (7 dni na zażalenie lub 14 dni na odwołanie).
+          W przypadku braku manualnego odbioru pismo zostanie uznane za doręczone z upływem 14 dni
           od dnia wpływu (fikcja doręczenia).
         </AlertDescription>
       </Alert>
+
+      {/* Komunikat błędu operacji */}
+      {errorMessage && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Błąd modułu e-Doręczeń</AlertTitle>
+          <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Stan ładowania */}
+      {isLoading && items.length === 0 && (
+        <div className="flex items-center justify-center p-8 text-sm text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin mr-2" />
+          Ładowanie korespondencji z bufora ADE...
+        </div>
+      )}
 
       {/* Lista przesyłek urzędowych */}
       <div className="grid gap-4">
@@ -186,9 +252,10 @@ export function EdoreczeniaPanel() {
                         Pozostało {daysToFiction} dni do fikcji doręczenia.
                       </span>
                     )}
-                    {item.status === "ODEBRANE_UPD" && item.updGeneratedAt && (
+                    {item.status === "ODEBRANE_UPD" && (item.updGeneratedAt || item.updSignedAt) && (
                       <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                        UPD potwierdzone: {new Date(item.updGeneratedAt).toLocaleString("pl-PL")}.
+                        UPD potwierdzone: {new Date(item.updGeneratedAt || item.updSignedAt!).toLocaleString("pl-PL")}.
+                        {item.signedBy ? ` Podpis: ${item.signedBy}` : ""}
                       </span>
                     )}
                     {item.status === "FIKCJA_DORECZENIA" && (
@@ -205,6 +272,7 @@ export function EdoreczeniaPanel() {
                           variant="default"
                           size="sm"
                           onClick={() => setSelectedForReceipt(item)}
+                          disabled={isSubmitting}
                         >
                           Pobierz treść i wygeneruj UPD
                         </Button>
@@ -223,18 +291,23 @@ export function EdoreczeniaPanel() {
                             <p className="text-amber-700 dark:text-amber-300 font-medium bg-amber-50 dark:bg-amber-950/40 p-2 rounded">
                               Pobranie pliku spowoduje natychmiastowe wystawienie
                               <strong> Urzędowego Poświadczenia Doręczenia (UPD)</strong> i rozpocznie bieg terminu procesowego (
-                              {item.proceduralDaysLimit ?? 14} dni).
+                              {item.proceduralDaysLimit ?? 14} dni na odpowiedź / zaskarżenie).
                             </p>
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setSelectedForReceipt(null)}>
+                          <AlertDialogCancel
+                            onClick={() => setSelectedForReceipt(null)}
+                            disabled={isSubmitting}
+                          >
                             Anuluj
                           </AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => handleConfirmReceipt(item)}
-                            className="bg-primary text-primary-foreground"
+                            disabled={isSubmitting}
+                            className="bg-primary text-primary-foreground flex items-center gap-2"
                           >
+                            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                             Potwierdzam odbiór i start terminu
                           </AlertDialogAction>
                         </AlertDialogFooter>
