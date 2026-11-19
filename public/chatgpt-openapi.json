@@ -1,0 +1,273 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Portal BiuroAdmin — KSeF & e-Doręczenia API for ChatGPT Actions",
+    "description": "Oficjalny interfejs API Portalu BiuroAdmin (KSeF 2.0, FA(3), e-Doręczenia ADE, Transactional Outbox) dedykowany dla Custom GPT / ChatGPT Actions. Umożliwia asystentom AI bezpieczne odpytywanie o stan kolejki KSeF, pobieranie faktur i pism urzędowych oraz asynchroniczną rejestrację dokumentów z gwarancją deduplikacji.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Biuro Rachunkowe Jarosław Konik",
+      "url": "https://biuroadmin.online",
+      "email": "kontakt@biuroadmin.online"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://portal.biuroadmin.online/api/ksef",
+      "description": "Produkcyjna brama API Portalu BiuroAdmin (reverse proxy Caddy -> ksef-worker)"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/api/outbox/stats": {
+      "get": {
+        "operationId": "getOutboxStats",
+        "summary": "Pobranie statystyk bufora transakcyjnego Outbox i kolejki KSeF",
+        "description": "Zwraca bieżący stan kolejki asynchronicznej KSeF, liczbę oczekujących faktur (PENDING), błędów (FAILED) oraz stan procesu relay.",
+        "responses": {
+          "200": {
+            "description": "Statystyki bufora transakcyjnego Outbox i stan relay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "stats": {
+                      "type": "object",
+                      "properties": {
+                        "pending": { "type": "integer", "example": 0 },
+                        "processing": { "type": "integer", "example": 0 },
+                        "processed": { "type": "integer", "example": 142 },
+                        "failed": { "type": "integer", "example": 0 },
+                        "retry": { "type": "integer", "example": 0 }
+                      }
+                    },
+                    "relayState": {
+                      "type": "object",
+                      "properties": {
+                        "isRunning": { "type": "boolean", "example": true },
+                        "processedTotal": { "type": "integer", "example": 142 },
+                        "failedTotal": { "type": "integer", "example": 0 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Brak lub nieprawidłowy klucz API (x-api-key)"
+          },
+          "403": {
+            "description": "Brak wymaganego uprawnienia (ksef:status)"
+          }
+        }
+      }
+    },
+    "/api/invoices": {
+      "post": {
+        "operationId": "registerInvoice",
+        "summary": "Rejestracja nowej faktury z deduplikacją SHA-256",
+        "description": "Rejestruje nową fakturę w buforze Transactional Outbox. Sprawdza unikalność pliku i metadanych za pomocą SHA-256, zapobiegając podwójnemu zaksięgowaniu.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["invoiceNumber", "sellerNip", "buyerNip", "totalGross"],
+                "properties": {
+                  "invoiceNumber": { "type": "string", "example": "FV/2026/11/042" },
+                  "sellerNip": { "type": "string", "example": "7532190370" },
+                  "buyerNip": { "type": "string", "example": "6770065406" },
+                  "sellerName": { "type": "string", "example": "JAROSŁAW KONIK BIURO RACHUNKOWE" },
+                  "buyerName": { "type": "string", "example": "COMARCH SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ" },
+                  "issueDate": { "type": "string", "format": "date", "example": "2026-11-19" },
+                  "saleDate": { "type": "string", "format": "date", "example": "2026-11-19" },
+                  "currency": { "type": "string", "example": "PLN", "default": "PLN" },
+                  "totalNet": { "type": "number", "example": 2500.00 },
+                  "totalVat": { "type": "number", "example": 575.00 },
+                  "totalGross": { "type": "number", "example": 3075.00 },
+                  "invoiceType": { "type": "string", "enum": ["VAT", "KOR", "ZAL"], "default": "VAT" },
+                  "fileContent": { "type": "string", "description": "Zawartość pliku XML faktury lub tekst do hashowania SHA-256" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Faktura zarejestrowana pomyślnie w Transactional Outbox",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "invoiceId": { "type": "string", "format": "uuid" },
+                    "invoiceNumber": { "type": "string", "example": "FV/2026/11/042" },
+                    "ksefStatus": { "type": "string", "example": "PENDING" },
+                    "totalGross": { "type": "number", "example": 3075.00 },
+                    "currency": { "type": "string", "example": "PLN" },
+                    "createdAt": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Błędne dane wejściowe lub brak wymaganych pól" },
+          "409": { "description": "Zablokowano duplikat faktury (anti-double booking SHA-256)" },
+          "401": { "description": "Brak lub nieprawidłowy klucz API" },
+          "403": { "description": "Brak wymaganego uprawnienia (invoices:write)" }
+        }
+      },
+      "get": {
+        "operationId": "listInvoices",
+        "summary": "Pobranie listy faktur i ich statusów w KSeF",
+        "description": "Zwraca listę zarejestrowanych faktur wraz z aktualnym statusem KSeF (DRAFT, QUEUED, SENT, ACCEPTED, REJECTED) oraz numerami referencyjnymi KSeF i UPO.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maksymalna liczba zwracanych faktur",
+            "schema": { "type": "integer", "default": 20 }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Przesunięcie stronicowania",
+            "schema": { "type": "integer", "default": 0 }
+          },
+          {
+            "name": "ksefStatus",
+            "in": "query",
+            "description": "Filtrowanie po statusie KSeF",
+            "schema": { "type": "string", "enum": ["DRAFT", "PENDING", "SENT", "ACCEPTED", "REJECTED"] }
+          },
+          {
+            "name": "nip",
+            "in": "query",
+            "description": "Filtrowanie po NIP sprzedawcy lub nabywcy",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista faktur",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "count": { "type": "integer", "example": 1 },
+                    "invoices": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "format": "uuid" },
+                          "invoiceNumber": { "type": "string", "example": "FV/2026/11/042" },
+                          "sellerNip": { "type": "string", "example": "7532190370" },
+                          "buyerNip": { "type": "string", "example": "6770065406" },
+                          "sellerName": { "type": "string", "example": "JAROSŁAW KONIK BIURO RACHUNKOWE" },
+                          "buyerName": { "type": "string", "example": "COMARCH SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ" },
+                          "issueDate": { "type": "string", "format": "date" },
+                          "totalGross": { "type": "number", "example": 3075.00 },
+                          "currency": { "type": "string", "example": "PLN" },
+                          "ksefStatus": { "type": "string", "example": "ACCEPTED" },
+                          "ksefNumber": { "type": "string", "example": "7532190370-20261119-0123456789AB-01" },
+                          "createdAt": { "type": "string", "format": "date-time" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Brak lub nieprawidłowy klucz API" },
+          "403": { "description": "Brak wymaganego uprawnienia (invoices:read)" }
+        }
+      }
+    },
+    "/api/edoreczenia/messages": {
+      "get": {
+        "operationId": "listEdoreczeniaMessages",
+        "summary": "Pobranie pism urzędowych e-Doręczeń (ADE)",
+        "description": "Zwraca listę przesyłek urzędowych ze skrzynki e-Doręczeń z terminami procesowymi (14-dniowa fikcja doręczenia, UPD, termin na wniesienie skargi/odpowiedzi).",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filtrowanie pism po statusie doręczenia",
+            "schema": { "type": "string", "enum": ["AWIZO_OCZEKUJE", "ODEBRANE_UPD", "FIKCJA_DORECZENIA"] }
+          },
+          {
+            "name": "recipient",
+            "in": "query",
+            "description": "Adresat lub NIP adresata",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "sender",
+            "in": "query",
+            "description": "Nadawca pisma (np. Urząd Skarbowy, ZUS)",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista pism ADE z wyliczonymi terminami prawno-procesowymi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "count": { "type": "integer", "example": 1 },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "example": "ade-msg-001" },
+                          "messageId": { "type": "string", "example": "ADE-2026-US-8912" },
+                          "sender": { "type": "string", "example": "Pierwszy Urząd Skarbowy w Opolu" },
+                          "recipient": { "type": "string", "example": "JAROSŁAW KONIK BIURO RACHUNKOWE" },
+                          "subject": { "type": "string", "example": "Wezwanie do wyjaśnień — JPK_V7M za 10/2026" },
+                          "caseReference": { "type": "string", "example": "US-OP-1600/2026/V7" },
+                          "receivedAt": { "type": "string", "format": "date-time" },
+                          "fictionDeadlineAt": { "type": "string", "format": "date-time" },
+                          "status": { "type": "string", "enum": ["AWIZO_OCZEKUJE", "ODEBRANE_UPD", "FIKCJA_DORECZENIA"] },
+                          "updGeneratedAt": { "type": "string", "format": "date-time" },
+                          "proceduralDaysLimit": { "type": "integer", "example": 7 }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Brak lub nieprawidłowy klucz API" },
+          "403": { "description": "Brak wymaganego uprawnienia (edoreczenia:read)" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "Klucz API wygenerowany w portalu Portal.biuroadmin.online z prefiksem ba_live_... Przesyłany w nagłówku x-api-key."
+      }
+    }
+  }
+}

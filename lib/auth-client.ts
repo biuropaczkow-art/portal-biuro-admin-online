@@ -55,6 +55,24 @@ export interface SessionResult {
   error?: string;
 }
 
+export interface ApiKeyItem {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  scopes: string[];
+  createdAt: string;
+  expiresAt?: string;
+  revokedAt?: string;
+  lastUsedAt?: string;
+}
+
+export interface CreateApiKeyResult {
+  success: boolean;
+  apiKey?: ApiKeyItem;
+  rawKey?: string;
+  error?: string;
+}
+
 const TOKEN_STORAGE_KEY = 'biuroadmin_session_token';
 
 /**
@@ -266,6 +284,145 @@ export async function listRegisteredUsers(explicitToken?: string): Promise<{ suc
     return {
       success: false,
       error: err?.message || 'Błąd pobierania listy użytkowników',
+    };
+  }
+}
+
+/**
+ * Generuje nowy klucz API dla integracji z ChatGPT Actions / systemami zewnętrznymi (Zadanie W-05)
+ */
+export async function generateApiKey(
+  params: { name: string; scopes: string[]; expiresInDays?: number },
+  explicitToken?: string
+): Promise<CreateApiKeyResult> {
+  const baseUrl = getAuthApiBaseUrl();
+  const token = explicitToken || getStoredSessionToken();
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+    headers['x-session-token'] = token;
+  }
+
+  try {
+    const res = await fetch(`${baseUrl}/api/auth/api-keys`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: JSON.stringify(params),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return {
+        success: false,
+        error: data.error || `HTTP ${res.status}: Nie udało się wygenerować klucza API`,
+      };
+    }
+
+    return {
+      success: true,
+      apiKey: data.apiKey,
+      rawKey: data.rawKey || data.key,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || 'Błąd połączenia z serwerem autoryzacji',
+    };
+  }
+}
+
+/**
+ * Pobiera listę kluczy API bieżącego użytkownika lub organizacji
+ */
+export async function listApiKeys(
+  explicitToken?: string
+): Promise<{ success: boolean; apiKeys?: ApiKeyItem[]; error?: string }> {
+  const baseUrl = getAuthApiBaseUrl();
+  const token = explicitToken || getStoredSessionToken();
+
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+    headers['x-session-token'] = token;
+  }
+
+  try {
+    const res = await fetch(`${baseUrl}/api/auth/api-keys`, {
+      method: 'GET',
+      headers,
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return {
+        success: false,
+        error: data.error || `HTTP ${res.status}: Nie udało się pobrać listy kluczy API`,
+      };
+    }
+
+    return {
+      success: true,
+      apiKeys: data.apiKeys || data.keys || [],
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || 'Błąd połączenia z serwerem autoryzacji',
+    };
+  }
+}
+
+/**
+ * Unieważnia (odwołuje) klucz API po identyfikatorze
+ */
+export async function revokeApiKey(
+  id: string,
+  explicitToken?: string
+): Promise<{ success: boolean; error?: string }> {
+  const baseUrl = getAuthApiBaseUrl();
+  const token = explicitToken || getStoredSessionToken();
+
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+    headers['x-session-token'] = token;
+  }
+
+  try {
+    const res = await fetch(`${baseUrl}/api/auth/api-keys/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers,
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      return {
+        success: false,
+        error: data.error || `HTTP ${res.status}: Nie udało się odwołać klucza API`,
+      };
+    }
+
+    return {
+      success: true,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.message || 'Błąd połączenia z serwerem autoryzacji',
     };
   }
 }

@@ -6,6 +6,7 @@ import {Tabs,TabsList,TabsTrigger,TabsContent} from "@/components/ui/tabs";
 import {Textarea} from "@/components/ui/textarea";
 import {Dialog,DialogContent,DialogTitle,DialogDescription} from "@/components/ui/dialog";
 import {EdoreczeniaPanel} from "@/components/edoreczenia-panel";
+import {ApiKeysPanel} from "@/components/api-keys-panel";
 import {submitToTransactionalOutbox, getOutboxHealth, type OutboxStatsResponse} from "@/lib/ksef-outbox-client";
 import {
   getCurrentSession,
@@ -614,6 +615,7 @@ export default function Demo(){
             <TabsTrigger value="zus">e-ZUS</TabsTrigger>
             <TabsTrigger value="reports">Raporty sztabowe</TabsTrigger>
             <TabsTrigger value="messages">Wiadomości</TabsTrigger>
+            <TabsTrigger value="api-keys">ChatGPT & API Keys</TabsTrigger>
           </TabsList>
 
           <div role="status" aria-live="polite" className={notice?"demo-notice":""}>{notice}</div>
@@ -1175,6 +1177,12 @@ export default function Demo(){
                 <Textarea id="message" value={draft} maxLength={1000} onChange={e=>setDraft(e.target.value)} placeholder="Napisz wiadomość do biura…"/>
                 <Button type="submit" disabled={!draft.trim()}>Wyślij wiadomość <ArrowRight/></Button>
               </form>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="api-keys">
+            <section className="workspace-card" style={{ padding: "1.5rem" }}>
+              <ApiKeysPanel />
             </section>
           </TabsContent>
         </Tabs>
