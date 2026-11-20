@@ -39,3 +39,14 @@
 .module-card a{left:32px;display:inline-flex}
 .module-card a svg{margin:0;flex:0 0 auto;transition:transform .18s ease}
 .module-card a:hover svg,.module-card a:focus-visible svg{transform:translateX(3px)}
+
+/* Audyt mobilny 2026-11-20: kafle nie mogą poszerzać całego obszaru roboczego. */
+.metric-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.metric-grid>div{min-width:0;grid-template-columns:minmax(0,1fr) auto}
+.metric-grid strong{min-width:0;overflow-wrap:anywhere}
+@media(max-width:560px){
+  .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .metric-grid>div:last-child{grid-column:1 / -1}
+  .metric-grid>div:last-child strong{overflow-wrap:normal}
+  .demo-title h1{overflow-wrap:anywhere}
+}
