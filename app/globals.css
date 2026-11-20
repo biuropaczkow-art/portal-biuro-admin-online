@@ -29,3 +29,13 @@
 .chatgpt-button{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px;margin-top:8px;border:1px solid #10a37f;border-radius:999px;background:#10a37f;color:#ffffff;font-size:12px;font-weight:600;cursor:pointer;transition:background-color .15s,border-color .15s;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .chatgpt-button:hover{background:#0d8a6a;border-color:#0d8a6a}
 .chatgpt-button svg{flex-shrink:0}
+
+/* Audyt UI 2026-11-20: kontrolowane przepełnienie zakładek i spójne CTA kart. */
+.demo-shell{max-width:100%;overflow-x:hidden}
+.demo-body,.workspace-tabs{width:100%;min-width:0}
+.module-tabs{display:flex;width:100%;max-width:100%;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}
+.module-card{padding-bottom:74px}
+.module-card>svg{color:var(--green);margin-bottom:35px}
+.module-card a{left:32px;display:inline-flex}
+.module-card a svg{margin:0;flex:0 0 auto;transition:transform .18s ease}
+.module-card a:hover svg,.module-card a:focus-visible svg{transform:translateX(3px)}

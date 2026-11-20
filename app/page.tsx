@@ -239,7 +239,7 @@ export default function Home() {
               Osobny obszar do konfiguracji połączenia i synchronizacji metadanych faktur. Pełna kontrola nad obiegiem
               faktur ustrukturyzowanych.
             </p>
-            <a href="/demo?role=client">
+            <a href="/demo?role=client&tab=ksef" aria-label="Otwórz moduł KSeF w panelu demonstracyjnym">
               Zobacz w demo <ArrowRight size={14} />
             </a>
           </article>
@@ -252,7 +252,7 @@ export default function Home() {
               Obszar składek, pracowników, e-ZLA oraz rozliczeń kadrowo-płacowych. Bezpieczny obieg informacji
               związanych z ubezpieczeniami społecznymi.
             </p>
-            <a href="/demo?role=client">
+            <a href="/demo?role=client&tab=zus" aria-label="Otwórz moduł e-ZUS w panelu demonstracyjnym">
               Zobacz w demo <ArrowRight size={14} />
             </a>
           </article>
@@ -265,7 +265,7 @@ export default function Home() {
               Prywatne archiwum firmy: bezpieczne dodawanie plików, podgląd historii i bezpośrednia wymiana wiadomości
               z księgowym.
             </p>
-            <a href="/demo?role=client">
+            <a href="/demo?role=client&tab=documents" aria-label="Otwórz moduł Dokumenty w panelu demonstracyjnym">
               Zobacz w demo <ArrowRight size={14} />
             </a>
           </article>
@@ -281,8 +281,8 @@ export default function Home() {
         </div>
         <div>
           <span>Kontakt: </span>
-          <a href="mailto:biuro.paczkow@gmail.com" style={{ textDecoration: "underline" }}>
-            biuro.paczkow@gmail.com
+          <a href="mailto:kontakt@biuroadmin.online" style={{ textDecoration: "underline" }}>
+            kontakt@biuroadmin.online
           </a>
         </div>
         <div>

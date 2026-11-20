@@ -175,6 +175,7 @@ async function computeSha256(content:ArrayBuffer|string):Promise<string>{
 }
 
 export default function Demo(){
+  const demoCompanyName="Firma Alfa sp. z o.o. (demo)";
   const [role,setRole]=useState("client");
   const [tab,setTab]=useState("overview");
   const [docs,setDocs]=useState<Doc[]>(initial);
@@ -207,6 +208,13 @@ export default function Demo(){
     const hashParams=typeof window!=="undefined"?new URLSearchParams(window.location.hash.replace(/^#/,'')):new URLSearchParams();
     
     const urlToken = params.get("token");
+    const requestedRole=params.get("role")==="admin"?"admin":"client";
+    const requestedTab=params.get("tab");
+    const allowedTabs=requestedRole==="admin"
+      ? ["overview","documents","contractors","ksef","edoreczenia","zus","reports","api-keys"]
+      : ["overview","documents","contractors","ksef","edoreczenia","zus","messages"];
+    setRole(requestedRole);
+    if(requestedTab&&allowedTabs.includes(requestedTab)) setTab(requestedTab);
     if (urlToken) {
       storeSessionToken(urlToken);
     }
@@ -279,6 +287,11 @@ export default function Demo(){
   },[]);
 
   const visible=docs.filter(d=>role==="admin"||d.company==="Firma Alfa (demo)");
+  const changeRole=(nextRole:string)=>{
+    setRole(nextRole);
+    if((nextRole==="client"&&["reports","api-keys"].includes(tab))||(nextRole==="admin"&&tab==="messages")) setTab("overview");
+    setNotice("");setSelected(null);setValAlert(null);
+  };
   const pending=visible.filter(d=>d.status==="Do sprawdzenia"||d.status==="Zaksięgowany (Unikalny)").length;
 
   async function processDocumentUpload(file:File|null,meta?:{name?:string;sellerNip?:string;invoiceNumber?:string;issueDate?:string;amount?:string;content?:string}){
@@ -523,7 +536,7 @@ export default function Demo(){
   return (
     <main className="demo-shell">
       <div className="demo-banner">
-        <ShieldCheck size={16}/> DEMO · Biuro Rachunkowe Jarosław Konik · Środowisko testowe KSeF Outbox
+        <ShieldCheck size={16}/> DEMO · Bezpieczna Strefa Klienta · Środowisko testowe Biura Rachunkowego Jarosław Konik
       </div>
       {(sessionUser || chatGptUser) && (
         <div style={{
@@ -593,11 +606,11 @@ export default function Demo(){
       <div className="demo-body">
         <div className="demo-title">
           <div>
-            <div className="eyebrow">{role==="admin"?"Przestrzeń biura":"Firma Alfa · strefa klienta"}</div>
+            <div className="eyebrow">{role==="admin"?"Przestrzeń administratora":`${demoCompanyName} · Bezpieczna Strefa Klienta`}</div>
             <h1>{role==="admin"?"Wszystko pod kontrolą.":"Dzień dobry. Tu jest Twoja firma."}</h1>
             <p>{role==="admin"?"Zarządzanie obiegiem dokumentów, walidacja KSeF i obsługa klientów.":"Dokumenty, faktury KSeF, sprawy urzędowe i kontakt z biurem w jednym miejscu."}</p>
           </div>
-          <Tabs value={role} onValueChange={v=>{setRole(v);setNotice("");setSelected(null);setValAlert(null);}}>
+          <Tabs value={role} onValueChange={changeRole}>
             <TabsList aria-label="Wybierz rolę demonstracyjną">
               <TabsTrigger value="client">Klient</TabsTrigger>
               <TabsTrigger value="admin">Administrator</TabsTrigger>
@@ -613,9 +626,9 @@ export default function Demo(){
             <TabsTrigger value="ksef">KSeF</TabsTrigger>
             <TabsTrigger value="edoreczenia">e-Doręczenia (ADE)</TabsTrigger>
             <TabsTrigger value="zus">e-ZUS</TabsTrigger>
-            <TabsTrigger value="reports">Raporty sztabowe</TabsTrigger>
-            <TabsTrigger value="messages">Wiadomości</TabsTrigger>
-            <TabsTrigger value="api-keys">ChatGPT & API Keys</TabsTrigger>
+            {role==="admin"&&<TabsTrigger value="reports">Raporty sztabowe</TabsTrigger>}
+            {role==="client"&&<TabsTrigger value="messages">Wiadomości</TabsTrigger>}
+            {role==="admin"&&<TabsTrigger value="api-keys">ChatGPT i klucze API</TabsTrigger>}
           </TabsList>
 
           <div role="status" aria-live="polite" className={notice?"demo-notice":""}>{notice}</div>
