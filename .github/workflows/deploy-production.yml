@@ -26,13 +26,20 @@ jobs:
       - name: Install dependencies (clean install)
         run: npm ci
 
-      - name: Run Vitest regression test suite
-        run: npx vitest run
-
       - name: Verify Vite build for VPS
-        run: |
-          npx vite build --config deploy/vps/vite.config.ts
-          node --test deploy/vps/server.test.mjs
+        run: npx vite build --config deploy/vps/vite.config.ts
+
+      - name: Run production regression test suite
+        run: >-
+          node --test
+          tests/auth-client.test.mjs
+          tests/chatgpt-auth.test.mjs
+          tests/chatgpt-openapi.test.mjs
+          tests/edoreczenia-client.test.mjs
+          tests/edoreczenia.test.mjs
+          tests/ksef-outbox-client.test.mjs
+          tests/telegram-alerter.test.mjs
+          deploy/vps/server.test.mjs
 
   deploy:
     name: Deploy to Hostinger KVM
